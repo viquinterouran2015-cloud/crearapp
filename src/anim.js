@@ -139,7 +139,7 @@ export function animSvg(id) {
   if (cache[id]) return cache[id];
   const [poses, dur, extra = ''] = def, fr = poses.map(frame);
   const path = (cls, k) => `<path class="${cls}" d="${fr[0][k]}">${anim('d', fr.map(f => f[k]), dur)}</path>`;
-  cache[id] = `<svg class="anim" viewBox="20 6 160 124" style="color:${AREAS[e.a].c}" aria-hidden="true" focusable="false">
+  cache[id] = `<svg class="anim" viewBox="26 20 150 110" style="color:${AREAS[e.a].c}" aria-hidden="true" focusable="false">
     <line class="gr" x1="22" y1="126" x2="178" y2="126"/>${extra}
     ${path('far', 'farArm')}${path('far', 'farLeg')}${path('', 'torso')}${path('', 'nearLeg')}${path('', 'nearArm')}
     <circle r="9" cx="${fr[0].head[0]}" cy="${fr[0].head[1]}">${anim('cx', fr.map(f => f.head[0].toFixed(1)), dur)}${anim('cy', fr.map(f => f.head[1].toFixed(1)), dur)}</circle></svg>`;
