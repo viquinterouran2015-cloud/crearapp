@@ -88,3 +88,5 @@ const GOALS = {
   tone:   { n: 'Tonificar',      seq: ['cuerpo', 'glu', 'abs', 'bra', 'pier', 'est'] },
   health: { n: 'Sentirme mejor', seq: ['ini', 'est', 'abs2', 'esp', 'mov', 'pier'] }
 };
+
+export { AREAS, EX, WORKOUTS, LEVELS, GOALS };

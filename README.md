@@ -1,12 +1,19 @@
 # Fluir · Entrena en casa
 
-PWA de entrenamiento en casa: sin anuncios, sin cuentas, sin pagos y sin equipo. HTML/CSS/JS puro (sin build), instalable y funciona offline.
+PWA de entrenamiento en casa: sin anuncios, sin cuentas, sin pagos y sin equipo.
 
-## Ejecutar
+**Stack:** HTML + CSS + JavaScript (módulos ES) con [Vite](https://vite.dev) y `vite-plugin-pwa` (manifest + service worker generados, instalable y offline). Sin frameworks: el bundle pesa ~12 KB gzip.
+
 ```
-python3 -m http.server 8080   # abrir http://localhost:8080
+npm install
+npm run dev       # desarrollo en http://localhost:5173
+npm run build     # produce dist/
+npm run preview   # sirve dist/ en http://localhost:4173
 ```
-(El service worker y la instalación requieren `localhost` o HTTPS.)
+
+**Estructura:** `index.html` · `src/main.js` (vistas, router, reproductor) · `src/data.js` (ejercicios y rutinas de ejemplo) · `src/styles.css` · `public/icons/`.
+
+**Alcance v1:** diseño + navegación completa (Hoy, Explorar, Plan, Progreso, reproductor, ajustes) con datos de ejemplo guardados en `localStorage`.
 
 ## Decisiones de diseño (según competidores y reseñas frecuentes)
 | Queja / sugerencia habitual | Qué hace Fluir |

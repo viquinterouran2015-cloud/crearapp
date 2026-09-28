@@ -1,4 +1,5 @@
-'use strict';
+import './styles.css';
+import { AREAS, EX, WORKOUTS, LEVELS, GOALS } from './data.js';
 /* ---------- Utilidades ---------- */
 const $ = (s, r = document) => r.querySelector(s);
 const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -431,11 +432,10 @@ setInterval(() => {
   const r = S.settings.remind, now = new Date(), hm = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
   if (r && r === hm && !doneOn(dkey()).length && sessionStorage.getItem('rem') !== dkey()) {
     sessionStorage.setItem('rem', dkey());
-    if ('Notification' in window && Notification.permission === 'granted') new Notification('Fluir', { body: 'Es hora de tu entrenamiento de hoy 💪', icon: 'icons/icon-192.png' });
+    if ('Notification' in window && Notification.permission === 'granted') new Notification('Fluir', { body: 'Es hora de tu entrenamiento de hoy 💪', icon: '/icons/icon-192.png' });
     else toast('Es hora de tu entrenamiento');
   }
 }, 30000);
 
 /* ---------- Arranque ---------- */
-if ('serviceWorker' in navigator) addEventListener('load', () => navigator.serviceWorker.register('sw.js').catch(() => {}));
 route();
