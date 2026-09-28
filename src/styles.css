@@ -165,10 +165,15 @@ main{padding:20px 16px calc(var(--nav-h) + 28px + env(safe-area-inset-bottom));m
 
 /* Animaciones de ejercicios */
 svg.anim{display:block;width:100%;height:auto;overflow:visible}
-svg.anim path{fill:none;stroke:currentColor;stroke-width:6;stroke-linecap:round;stroke-linejoin:round}
-svg.anim .far{opacity:.45}
-svg.anim circle{fill:var(--bg);stroke:currentColor;stroke-width:5}
+svg.anim path{fill:none;stroke:currentColor;stroke-linecap:round;stroke-linejoin:round}
+svg.anim .t{stroke-width:15}
+svg.anim .u{stroke-width:9.5}
+svg.anim .l{stroke-width:7.5}
+svg.anim .far{opacity:.5}
+svg.anim .j{fill:currentColor;stroke:none}
+svg.anim .hd{fill:var(--bg);stroke:currentColor;stroke-width:5}
 svg.anim .gr{stroke:var(--line);stroke-width:2;stroke-linecap:round}
+svg.anim .sh{fill:currentColor;opacity:.13}
 svg.anim .ob{fill:var(--line)}
 .ring .core.has-anim{width:66%;aspect-ratio:auto;border-radius:30px;padding:8px 6px;animation:none}
 .ring .core.has-anim svg.anim{position:static;width:100%;height:auto;transform:none;fill:none}
