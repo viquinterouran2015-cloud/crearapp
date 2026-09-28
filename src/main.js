@@ -38,12 +38,13 @@ const DOW = ['L', 'M', 'X', 'J', 'V', 'S', 'D'];
 /* ---------- Estado (localStorage, sin cuentas) ---------- */
 const KEY = 'fluir:v1';
 const DEFAULT = { profile: { goal: 'tone', level: 1, days: 3, done: false },
-  settings: { voice: true, sound: true, rest: 0, theme: 'auto', remind: '' },
+  settings: { voice: true, sound: true, rest: 0, theme: 'dark', remind: '' },
   plan: null, log: [], weights: [], custom: [] };
 let S;
 try { S = Object.assign(structuredClone(DEFAULT), JSON.parse(localStorage.getItem(KEY) || '{}')); } catch { S = structuredClone(DEFAULT); }
 const save = () => { try { localStorage.setItem(KEY, JSON.stringify(S)); } catch { /* modo privado */ } };
 const applyTheme = () => { const t = S.settings.theme; t === 'auto' ? document.documentElement.removeAttribute('data-theme') : document.documentElement.setAttribute('data-theme', t); };
+if (!S.settings.themeChosen) S.settings.theme = 'dark'; // nuevo diseño oscuro por defecto
 applyTheme();
 
 /* ---------- Modelo ---------- */
@@ -103,11 +104,23 @@ function renderNav(cur) {
     NAV.map(([k, n, i]) => `<a href="#/${k}" ${k === cur ? 'aria-current="page"' : ''}>${ic(i)}<span>${n}</span></a>`).join('');
 }
 
+/* ---------- Fotos optimizadas (opcionales) ---------- */
+let IMG = {};
+function photo(key, sizes, eager = false) {
+  const p = IMG[key]; if (!p) return '';
+  return `<img class="photo" alt="" src="${p.src}" srcset="${p.srcset}" sizes="${sizes}" style="background-image:url(${p.lqip})" decoding="async" ${eager ? 'fetchpriority="high"' : 'loading="lazy"'}>`;
+}
+fetch('img/manifest.json').then(r => (r.ok ? r.json() : {})).then(j => {
+  if (!Object.keys(j).length) return;
+  IMG = j;
+  if (overlay.hidden && !document.querySelector('.player')) route();
+}).catch(() => {});
+
 /* ---------- Tarjetas ---------- */
 function wcard(w) {
   const lv = S.profile.level, m = minutes(w, lv), c = AREAS[w.a].c;
   return `<article class="card wcard" style="--c:${c}" tabindex="0" data-w="${w.id}" role="button" aria-label="Ver ${esc(w.n)}">
-    <div class="art">${glyph(w.a)}</div>
+    <div class="art ${IMG[w.a] ? 'has-photo' : ''}">${glyph(w.a)}${photo(w.a, '(min-width:760px) 300px, 50vw')}</div>
     <button class="go" data-go="${w.id}" aria-label="Empezar ${esc(w.n)}">${ic('play')}</button>
     <div class="body"><span class="tag">${w.custom ? 'Mi rutina' : AREAS[w.a].n}</span><h3>${esc(w.n)}</h3>
     <span class="pill">${ic('clock')} ${m} min · ${w.ex.length} ejercicios</span></div></article>`;
@@ -130,7 +143,7 @@ const VIEWS = {
     const recent = [...new Map(S.log.slice().reverse().map(l => [l.wid, l])).values()].slice(0, 4).map(l => getW(l.wid)).filter(Boolean);
     return `<div class="stack"><div class="row between"><div><p class="muted small">${hi}</p><h1>¿Listo para moverte?</h1></div>
       <button class="icon-btn" data-settings aria-label="Ajustes">${ic('gear')}</button></div>
-      <section class="card hero" style="--c:#fff"><p class="small muted">${planned ? 'Tu plan de hoy' : 'Sugerencia para hoy'}</p>
+      <section class="card hero ${IMG.hero ? 'has-photo' : ''}" style="--c:#fff">${photo('hero', '(min-width:760px) 720px, 100vw', true)}<p class="small muted">${planned ? 'Tu plan de hoy' : 'Sugerencia para hoy'}</p>
         <h2 style="font-size:1.5rem;margin:4px 0 6px">${esc(w.n)}</h2>
         <p class="muted small row" style="gap:6px">${ic('clock')} ${minutes(w, lv)} min · ${LEVELS[lv].n} · ~${kcal(minutes(w, lv), w)} kcal</p>
         <div class="row" style="margin-top:18px"><button class="btn" data-start="${w.id}">${ic('play')} Empezar ahora</button>
@@ -274,14 +287,14 @@ function settings() {
   sheet(`<div class="row between"><h1>Ajustes</h1><button class="icon-btn" data-close aria-label="Cerrar">${ic('x')}</button></div>
     <div class="card" style="margin:14px 0">${sw('voice', 'Guía por voz', 'Anuncia cada ejercicio y la cuenta atrás')}${sw('sound', 'Sonidos', 'Pitidos al cambiar de fase')}</div>
     <div class="card stack"><div><b>Descanso entre ejercicios</b><div class="seg" style="margin-top:8px">${[[0, 'Auto'], [10, '10 s'], [20, '20 s'], [30, '30 s']].map(([v, n]) => `<button data-rest="${v}" aria-pressed="${s.rest === v}">${n}</button>`).join('')}</div></div>
-      <div><b>Tema</b><div class="seg" style="margin-top:8px">${[['auto', 'Sistema'], ['light', 'Claro'], ['dark', 'Oscuro']].map(([v, n]) => `<button data-theme="${v}" aria-pressed="${s.theme === v}">${n}</button>`).join('')}</div></div>
+      <div><b>Tema</b><div class="seg" style="margin-top:8px">${[['dark', 'Oscuro'], ['light', 'Claro'], ['auto', 'Sistema']].map(([v, n]) => `<button data-theme="${v}" aria-pressed="${s.theme === v}">${n}</button>`).join('')}</div></div>
       <div><b>Recordatorio diario</b><p class="small muted">Se avisa mientras la app está abierta o instalada.</p><div class="field" style="margin-top:8px"><input type="time" id="rem" value="${esc(s.remind)}"><button class="btn ghost sm" id="remOk">Guardar</button></div></div></div>
     <div class="row" style="margin-top:14px;flex-wrap:wrap"><button class="btn ghost sm" id="plan2">Cambiar objetivo / plan</button><button class="btn line sm" id="exp">Exportar datos</button><button class="btn line sm" id="rst" style="color:var(--danger)">Borrar todo</button></div>
     <p class="small muted" style="margin-top:16px">Tus datos viven solo en este dispositivo.</p>`,
   el => {
     el.querySelectorAll('[data-s]').forEach(i => i.onchange = () => { s[i.dataset.s] = i.checked; save(); });
     el.querySelectorAll('[data-rest]').forEach(b => b.onclick = () => { s.rest = +b.dataset.rest; save(); settings(); });
-    el.querySelectorAll('[data-theme]').forEach(b => b.onclick = () => { s.theme = b.dataset.theme; save(); applyTheme(); settings(); });
+    el.querySelectorAll('[data-theme]').forEach(b => b.onclick = () => { s.theme = b.dataset.theme; s.themeChosen = true; save(); applyTheme(); settings(); });
     $('#remOk', el).onclick = async () => {
       s.remind = $('#rem', el).value; save();
       if (s.remind && 'Notification' in window && Notification.permission === 'default') await Notification.requestPermission();
