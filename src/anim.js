@@ -82,7 +82,7 @@ const chA = P([116, 104], [74, 108], [[136, 110], [158, 120]], [[134, 112], [156
 const chB = P([122, 108], [74, 108], [[140, 112], [160, 120]], [[138, 114], [158, 122]], [[102, 118], [70, 122]], [[100, 120], [68, 124]]);
 const qsA = P([100, 40], [100, 72], [[92, 62], [86, 82]], [[96, 58], [94, 77]], [[102, 98], [104, 122]], [[102, 98], [86, 82]]);
 const qsB = P([100, 40], [100, 72], [[92, 62], [88, 80]], [[96, 58], [94, 77]], [[102, 98], [104, 122]], [[102, 98], [88, 78]]);
-const hsA = P([116, 94], [90, 112], [[132, 100], [146, 112]], [[130, 102], [144, 114]], [[124, 113], [152, 120]], [[112, 96], [92, 118]]);
+const hsA = P([108, 84], [90, 112], [[126, 92], [142, 104]], [[124, 94], [140, 106]], [[124, 113], [152, 120]], [[112, 96], [92, 118]]);
 const hsB = P([126, 102], [90, 112], [[140, 108], [152, 116]], [[138, 110], [150, 118]], [[124, 113], [152, 120]], [[112, 96], [92, 118]]);
 const bfA = P([100, 72], [100, 108], [[112, 90], [106, 110]], [[88, 90], [94, 110]], [[128, 98], [104, 118]], [[72, 98], [96, 118]]);
 const bfB = P([100, 72], [100, 108], [[114, 92], [108, 112]], [[86, 92], [92, 112]], [[132, 110], [104, 118]], [[68, 110], [96, 118]]);
@@ -117,14 +117,10 @@ const ANIM = {
 ANIM.pl[0] = [plank, P([58, 78], [112, 87], ...plank.slice(2)), plank];
 
 /* ---- Render ---- */
-const limb = (a, b, c) => `M${pt(a)}L${pt(b)}L${pt(c)}`;
+const seg = (a, b) => `M${pt(a)}L${pt(b)}`;
 function frame(p) {
   const [n, h, an, af, ln, lf] = p, vx = n[0] - h[0], vy = n[1] - h[1], l = Math.hypot(vx, vy) || 1;
-  return {
-    head: [n[0] + vx / l * 14, n[1] + vy / l * 14],
-    farArm: limb(n, ...af), farLeg: limb(h, ...lf), torso: `M${pt(h)}L${pt(n)}`,
-    nearLeg: limb(h, ...ln), nearArm: limb(n, ...an)
-  };
+  return { n, h, an, af, ln, lf, head: [n[0] + vx / l * 15, n[1] + vy / l * 15] };
 }
 function anim(attr, vals, dur) {
   const n = vals.length, kt = vals.map((_, i) => (i / (n - 1)).toFixed(3)).join(';');
@@ -134,14 +130,23 @@ function anim(attr, vals, dur) {
 
 const cache = {};
 export function animSvg(id) {
+  if (cache[id]) return cache[id];
   const def = ANIM[id], e = EX[id];
   if (!def || !e) return '';
-  if (cache[id]) return cache[id];
   const [poses, dur, extra = ''] = def, fr = poses.map(frame);
-  const path = (cls, k) => `<path class="${cls}" d="${fr[0][k]}">${anim('d', fr.map(f => f[k]), dur)}</path>`;
+  const P0 = fr[0];
+  // Segmento animado entre dos puntos calculados desde cada pose
+  const line = (cls, get) => `<path class="${cls}" d="${seg(...get(P0))}">${anim('d', fr.map(f => seg(...get(f))), dur)}</path>`;
+  const dot = (cls, r, get) => { const [x, y] = get(P0);
+    return `<circle class="${cls}" r="${r}" cx="${x}" cy="${y}">${anim('cx', fr.map(f => get(f)[0]), dur)}${anim('cy', fr.map(f => get(f)[1]), dur)}</circle>`; };
+  const arm = (k, c) => line(`${c} u`, f => [f.n, f[k][0]]) + line(`${c} l`, f => [f[k][0], f[k][1]]) + dot(`${c} j`, 3.6, f => f[k][1]);
+  const leg = (k, c) => line(`${c} u`, f => [f.h, f[k][0]]) + line(`${c} l`, f => [f[k][0], f[k][1]]) + dot(`${c} j`, 4, f => f[k][1]);
+  const shadow = `<ellipse class="sh" rx="34" ry="3.5" cy="126" cx="${P0.h[0]}">${anim('cx', fr.map(f => f.h[0]), dur)}</ellipse>`;
   cache[id] = `<svg class="anim" viewBox="26 20 150 110" style="color:${AREAS[e.a].c}" aria-hidden="true" focusable="false">
-    <line class="gr" x1="22" y1="126" x2="178" y2="126"/>${extra}
-    ${path('far', 'farArm')}${path('far', 'farLeg')}${path('', 'torso')}${path('', 'nearLeg')}${path('', 'nearArm')}
-    <circle r="9" cx="${fr[0].head[0]}" cy="${fr[0].head[1]}">${anim('cx', fr.map(f => f.head[0].toFixed(1)), dur)}${anim('cy', fr.map(f => f.head[1].toFixed(1)), dur)}</circle></svg>`;
+    <line class="gr" x1="22" y1="126" x2="178" y2="126"/>${extra}${shadow}
+    <g class="far">${arm('af', 'far')}${leg('lf', 'far')}</g>
+    ${line('t', f => [f.h, f.n])}
+    ${leg('ln', 'near')}${arm('an', 'near')}
+    <circle class="hd" r="9.5" cx="${P0.head[0].toFixed(1)}" cy="${P0.head[1].toFixed(1)}">${anim('cx', fr.map(f => f.head[0].toFixed(1)), dur)}${anim('cy', fr.map(f => f.head[1].toFixed(1)), dur)}</circle></svg>`;
   return cache[id];
 }

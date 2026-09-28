@@ -16,8 +16,8 @@ export default defineConfig({
         scope: './',
         display: 'standalone',
         orientation: 'portrait',
-        background_color: '#F6F5F1',
-        theme_color: '#3E7C6E',
+        background_color: '#0D0E10',
+        theme_color: '#0D0E10',
         categories: ['health', 'fitness', 'lifestyle'],
         icons: [
           { src: 'icons/icon-192.png', sizes: '192x192', type: 'image/png', purpose: 'any' },
@@ -29,7 +29,14 @@ export default defineConfig({
           { name: 'Explorar', url: './index.html#/explorar' }
         ]
       },
-      workbox: { globPatterns: ['**/*.{js,css,html,svg,png,webmanifest}'] }
+      workbox: {
+        globPatterns: ['**/*.{js,css,html,svg,png,webmanifest}'],
+        // Las fotos no se precargan (instalación ligera): se guardan al verlas
+        runtimeCaching: [
+          { urlPattern: /\/img\/.*\.webp$/, handler: 'CacheFirst', options: { cacheName: 'fluir-fotos', expiration: { maxEntries: 60, maxAgeSeconds: 60 * 60 * 24 * 90 } } },
+          { urlPattern: /\/img\/manifest\.json$/, handler: 'StaleWhileRevalidate', options: { cacheName: 'fluir-fotos-manifest' } }
+        ]
+      }
     })
   ]
 });
