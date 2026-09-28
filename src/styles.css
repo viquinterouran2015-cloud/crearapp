@@ -162,3 +162,15 @@ main{padding:20px 16px calc(var(--nav-h) + 28px + env(safe-area-inset-bottom));m
 @keyframes fade{from{opacity:0}} @keyframes up{from{transform:translateY(40px);opacity:0}}
 @keyframes breathe{50%{transform:scale(1.05)}} @keyframes pop{0%{transform:scale(.4)}70%{transform:scale(1.1)}}
 @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+
+/* Animaciones de ejercicios */
+svg.anim{display:block;width:100%;height:auto;overflow:visible}
+svg.anim path{fill:none;stroke:currentColor;stroke-width:6;stroke-linecap:round;stroke-linejoin:round}
+svg.anim .far{opacity:.45}
+svg.anim circle{fill:var(--bg);stroke:currentColor;stroke-width:5}
+svg.anim .gr{stroke:var(--line);stroke-width:2;stroke-linecap:round}
+svg.anim .ob{fill:var(--line)}
+.ring .core.has-anim{width:66%;aspect-ratio:auto;border-radius:30px;padding:8px 6px;animation:none}
+.ring .core.has-anim svg.anim{position:static;width:100%;height:auto;transform:none;fill:none}
+.xlist .thumb{width:76px;flex:none;border-radius:12px;background:var(--pri-soft);padding:4px 2px}
+.xlist li{align-items:center}

@@ -1,4 +1,5 @@
 import './styles.css';
+import { animSvg } from './anim.js';
 import { AREAS, EX, WORKOUTS, LEVELS, GOALS } from './data.js';
 /* ---------- Utilidades ---------- */
 const $ = (s, r = document) => r.querySelector(s);
@@ -241,7 +242,7 @@ function detail(id, lv = S.profile.level) {
     <h1 style="margin:10px 0 4px">${esc(w.n)}</h1>
     <p class="muted small" id="meta">${minutes(w, lv)} min · ${w.r} ${w.r > 1 ? 'rondas' : 'ronda'} · ~${kcal(minutes(w, lv), w)} kcal</p>
     <div class="seg" style="margin:14px 0">${[1, 2, 3].map(n => `<button data-lv="${n}" aria-pressed="${n === lv}">${LEVELS[n].n}</button>`).join('')}</div>
-    <ol class="xlist">${list.map((s, i) => `<li><span class="n">${i + 1}</span><div><b>${esc(EX[s.id].n)}</b><p class="small muted">${esc(EX[s.id].t)}</p></div></li>`).join('')}</ol>
+    <ol class="xlist">${list.map((s, i) => `<li><div class="thumb">${animSvg(s.id)}</div><div><b>${i + 1}. ${esc(EX[s.id].n)}</b><p class="small muted">${esc(EX[s.id].t)}</p></div></li>`).join('')}</ol>
     <div class="row" style="margin-top:18px"><button class="btn block" id="go">${ic('play')} Empezar</button>${w.custom ? '<button class="btn line" id="del" aria-label="Eliminar rutina">Eliminar</button>' : ''}</div>`,
   el => {
     el.querySelectorAll('[data-lv]').forEach(b => b.onclick = () => detail(id, +b.dataset.lv));
@@ -372,7 +373,7 @@ function startWorkout(id, lv = S.profile.level, custom) {
       <div class="stage"><p class="small muted">${w.r > 1 ? `Ronda ${s.round} de ${w.r} · ` : ''}${esc(w.n)}</p>
         <h1>${esc(label)}</h1>
         <div class="ring" style="--c:${a.c}"><svg viewBox="0 0 100 100"><circle class="bg" cx="50" cy="50" r="44"/><circle class="fg" id="fg" cx="50" cy="50" r="44" stroke-dasharray="${R}" stroke-dashoffset="0"/></svg>
-          <div class="core">${phase === 'rest' ? ic('clock').replace('class="i "', 'class="i" style="width:46%;height:46%"') : glyph(e.a)}</div></div>
+          <div class="core has-anim">${animSvg(phase === 'rest' && nxt ? nxt.id : s.id)}</div></div>
         <div class="time" id="tm" aria-live="off">${left}</div>
         <p class="muted" style="max-width:34ch">${phase === 'rest' ? (nxt ? `Siguiente: <b>${esc(EX[nxt.id].n)}</b>` : 'Último ejercicio completado') : esc(e.t)}</p></div>
       <div class="controls"><button class="side" id="pv" aria-label="Anterior">${ic('prev')}</button>
@@ -382,6 +383,7 @@ function startWorkout(id, lv = S.profile.level, custom) {
     $('#quit', el).onclick = quit; $('#pp', el).onclick = () => { paused = !paused; draw(); };
     $('#nx', el).onclick = advance; $('#pv', el).onclick = back;
     const m = $('#more', el); if (m) m.onclick = () => { left += 20; draw(); };
+    if (paused) el.querySelector('svg.anim')?.pauseAnimations();
     paint();
   }
   const dt = 250; let last = performance.now(), acc = 0;
