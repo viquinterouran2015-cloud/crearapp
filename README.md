@@ -11,6 +11,8 @@ npm run build     # produce dist/
 npm run preview   # sirve dist/ en http://localhost:4173
 ```
 
+**Publicación:** `.github/workflows/deploy.yml` publica `dist/` en GitHub Pages al fusionar en `main` (o manualmente desde la pestaña Actions). Requiere una vez: Settings → Pages → Source = *GitHub Actions*. La app queda en `https://<usuario>.github.io/crearapp/` y, al abrirla en el teléfono, el navegador ofrece «Instalar / Añadir a pantalla de inicio».
+
 **Estructura:** `index.html` · `src/main.js` (vistas, router, reproductor) · `src/data.js` (ejercicios y rutinas de ejemplo) · `src/styles.css` · `public/icons/`.
 
 **Alcance v1:** diseño + navegación completa (Hoy, Explorar, Plan, Progreso, reproductor, ajustes) con datos de ejemplo guardados en `localStorage`.
