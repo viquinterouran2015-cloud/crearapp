@@ -2,8 +2,13 @@
 <html lang="es" data-theme="dark">
 <head>
 <meta charset="utf-8">
+<meta name="color-scheme" content="dark light">
+<!--csp-->
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Fluir · Entrena en casa</title>
+<meta property="og:title" content="Fluir · Entrena en casa">
+<meta property="og:description" content="Rutinas en casa sin anuncios ni cuentas. Plan de 4 semanas, temporizador guiado y progreso.">
+<meta property="og:type" content="website">
 <meta name="description" content="Rutinas en casa sin anuncios, sin cuentas y sin equipo. Planes de 4 semanas, temporizador guiado y progreso.">
 <meta name="theme-color" content="#0D0E10">
 <link rel="icon" href="/icons/icon.svg" type="image/svg+xml">
@@ -11,11 +16,14 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 </head>
 <body>
+<a class="skip" href="#view">Saltar al contenido</a>
 <div class="app">
   <nav class="nav" id="nav" aria-label="Principal"></nav>
   <main id="view" tabindex="-1"></main>
 </div>
 <div id="overlay" hidden></div>
+<div id="banner" role="status" hidden></div>
+<div id="live" class="sr-only" aria-live="polite"></div>
 <div id="toast" role="status" aria-live="polite"></div>
 <noscript>Fluir necesita JavaScript para funcionar.</noscript>
 <script type="module" src="/src/main.js"></script>

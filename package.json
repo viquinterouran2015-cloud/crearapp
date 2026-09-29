@@ -1,17 +1,26 @@
 {
   "name": "fluir",
   "private": true,
-  "version": "0.1.0",
+  "version": "1.0.0",
   "type": "module",
   "scripts": {
     "dev": "vite",
     "img": "node scripts/optimize-images.mjs",
     "build": "node scripts/optimize-images.mjs && vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "lint": "eslint .",
+    "test": "vitest run",
+    "e2e": "playwright test"
   },
   "devDependencies": {
+    "@axe-core/playwright": "^4.13.0",
+    "@eslint/js": "^10.0.1",
+    "@playwright/test": "^1.56.1",
+    "eslint": "^10.11.0",
+    "globals": "^17.12.0",
     "sharp": "^0.35.5",
     "vite": "^7.0.0",
-    "vite-plugin-pwa": "^1.0.0"
+    "vite-plugin-pwa": "^1.0.0",
+    "vitest": "^5.0.2"
   }
 }

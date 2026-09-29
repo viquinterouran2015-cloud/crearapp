@@ -150,3 +150,4 @@ export function animSvg(id) {
     <circle class="hd" r="9.5" cx="${P0.head[0].toFixed(1)}" cy="${P0.head[1].toFixed(1)}">${anim('cx', fr.map(f => f.head[0].toFixed(1)), dur)}${anim('cy', fr.map(f => f.head[1].toFixed(1)), dur)}</circle></svg>`;
   return cache[id];
 }
+export const ANIM_IDS = Object.keys(ANIM);
