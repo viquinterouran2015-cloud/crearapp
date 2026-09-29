@@ -33,6 +33,18 @@ npm run video     # convierte los clips de videos-src/ en MP4+WebM en bucle (ver
 | `videos-src/` | Clips de personas reales por ejercicio → `public/video/` (MP4 + WebM + póster) |
 | `.github/workflows/` | `ci.yml` (lint + pruebas en cada PR) · `deploy.yml` (GitHub Pages al fusionar en `main`) |
 
+## Niveles
+Cada rutina cambia de verdad con el nivel (`src/data.js` → `lv`, `LEVELS`):
+
+| | Principiante | Intermedio | Avanzado |
+|---|---|---|---|
+| Ejercicios | Variantes suaves, sin saltos (sentadilla a la silla, flexiones de rodillas, plancha de rodillas…) | Ejercicios completos | Variantes exigentes (sentadilla/zancada con salto, burpee con flexión, flexiones declinadas…) |
+| Trabajo / descanso | 30 s / 30 s | 40 s / 20 s | 50 s / 10 s |
+| Rondas | base | base | base + 1 |
+| Duración típica | ~10 min | ~12 min | ~21 min |
+
+Las rutinas de estiramiento solo alargan el tiempo de sostén; las rutinas propias y las rápidas no cambian de rondas.
+
 ## Decisiones de calidad
 - **Datos locales y a prueba de corrupción:** todo lo guardado pasa por `sanitizeState` (descarta lo inválido); exportar/importar copia de seguridad.
 - **Accesibilidad:** diálogos con foco atrapado y fondo inerte, `Esc`, salto al contenido, anuncios para lectores de pantalla, teclado en el reproductor (espacio, ←, →, Esc), `prefers-reduced-motion`, auditoría axe en CI.

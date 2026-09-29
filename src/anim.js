@@ -91,6 +91,12 @@ const trB = P([56, 80], [112, 82], [[76, 54], [60, 70]], [[60, 102], [58, 122]],
 const coDn = P([60, 116], [112, 116], [[66, 120], [70, 122]], [[66, 120], [70, 122]], [[140, 118], [166, 120]], [[140, 118], [166, 120]]);
 const coUp = P([72, 92], [112, 114], [[66, 106], [66, 120]], [[68, 108], [68, 120]], [[140, 118], [166, 120]], [[140, 118], [166, 120]]);
 
+const plkB = P([58, 82], [104, 94], kpUp[2], kpUp[3], kpUp[4], kpUp[5]);
+const pltA = P([58, 78], [112, 90], [[56, 100], [54, 122]], [[60, 100], [58, 122]], [[140, 80], [168, 70]], [[136, 106], [162, 122]]);
+const pltB = P([58, 78], [112, 90], [[56, 100], [54, 122]], [[60, 100], [58, 122]], [[138, 106], [164, 122]], [[136, 78], [166, 68]]);
+const dpuUp = P([58, 88], [112, 80], [[56, 106], [54, 122]], [[60, 106], [58, 122]], [[138, 88], [164, 94]], [[136, 88], [162, 94]]);
+const dpuDn = P([60, 110], [112, 96], [[84, 112], [58, 122]], [[86, 114], [62, 122]], [[138, 90], [164, 94]], [[136, 90], [162, 94]]);
+const CHAIR_R = '<rect class="ob" x="154" y="96" width="24" height="28" rx="4"/>';
 const CHAIR = '<rect class="ob" x="40" y="96" width="24" height="28" rx="4"/>';
 const CHAIR_L = '<rect class="ob" x="50" y="92" width="34" height="32" rx="4"/>';
 const CHAIR_B = '<rect class="ob" x="52" y="100" width="24" height="24" rx="4"/>';
@@ -110,6 +116,9 @@ const ANIM = {
   bd: [[bdA, bdB, bdA], 3], pu: [[plank, puDn, plank], 2.2], kp: [[kpUp, kpDn, kpUp], 2.2], ip: [[ipUp, ipDn, ipUp], 2.2, CHAIR],
   hp: [[hpA, hpB, hpA], 1.4], dm: [[plank, puDn, plank], 2.2], td: [[tdUp, tdDn, tdUp], 2.2, CHAIR_L],
   st: [[stA, stB, stA], 1.8], ac: [[acOut, acUp, acOut, acDn, acOut], 3],
+  js: [[stand, squat, jump, stand], 1.8], jl: [[lungeDn, jump, lungeDn], 1.7], csq: [[stand, squat, stand], 2.6, CHAIR_B],
+  bps: [[stand, crouch, plank, crouch, stand], 3.2], bpp: [[stand, crouch, plank, puDn, plank, crouch, jump, stand], 3.8],
+  mrc: [[hkA, hkB, hkA], 1.6], plk: [[kpUp, plkB, kpUp], 3], plt: [[pltA, pltB, pltA], 2.4], dpu: [[dpuUp, dpuDn, dpuUp], 2.4, CHAIR_R],
   cv: [[cvCow, cvCat, cvCow], 4], ch: [[chA, chB, chA], 4], qs: [[qsA, qsB, qsA], 3], hs: [[hsA, hsB, hsA], 4],
   bf: [[bfA, bfB, bfA], 3.5], tr: [[trA, trB, trA], 3.5], co: [[coDn, coUp, coDn], 3.5]
 };

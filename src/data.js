@@ -56,30 +56,52 @@ const EX = {
   hs:   { n: 'Estiramiento de isquios',  a: 'estira',  t: 'Pierna extendida, inclínate con la espalda larga.' },
   bf:   { n: 'Mariposa',                 a: 'estira',  t: 'Sentado con plantas juntas, deja caer las rodillas.' },
   tr:   { n: 'Rotación torácica',        a: 'estira',  t: 'Mano en la nuca, abre el codo hacia el techo.' },
+  js:   { n: 'Sentadilla con salto',      a: 'piernas', t: 'Baja a sentadilla y salta con fuerza; aterriza suave con las rodillas flexionadas.' },
+  jl:   { n: 'Zancada con salto',         a: 'piernas', t: 'Desde la zancada, salta y cambia de pierna en el aire. Aterriza con control.' },
+  csq:  { n: 'Sentadilla a la silla',     a: 'piernas', t: 'Siéntate en una silla sin dejarte caer y vuelve a levantarte empujando con los talones.' },
+  bps:  { n: 'Burpee sin salto',          a: 'cardio',  t: 'Baja, lleva los pies atrás uno a uno y vuelve a subir. Sin saltar.' },
+  bpp:  { n: 'Burpee con flexión',        a: 'cardio',  t: 'Baja, haz una flexión completa, recoge los pies y salta arriba.' },
+  mrc:  { n: 'Marcha en el sitio',        a: 'cardio',  t: 'Sube las rodillas alternando, sin saltos y con los brazos activos.' },
+  plk:  { n: 'Plancha de rodillas',       a: 'abs',     t: 'Apoya las rodillas; cuerpo en línea desde los hombros y abdomen firme.' },
+  plt:  { n: 'Plancha con elevación de pierna', a: 'abs', t: 'En plancha, alterna elevando una pierna sin girar la cadera.' },
+  dpu:  { n: 'Flexiones declinadas',      a: 'pecho',   t: 'Pies sobre una silla o sofá firme: más carga en pecho y hombros.' },
   co:   { n: 'Cobra',                    a: 'estira',  t: 'Boca abajo, empuja el pecho hacia arriba sin forzar la lumbar.' }
 };
 
-// r: rondas. m: minutos aprox. se calcula.
+// r: rondas base · ex: ejercicios del nivel Intermedio ·
+// lv: listas propias para Principiante (1) y Avanzado (3): variantes más suaves o más exigentes.
+// Las rutinas "gentle" (estiramiento) solo cambian los tiempos de sostén.
 const WORKOUTS = [
-  { id: 'hiit',  n: 'HIIT quema grasa',      a: 'cardio',  r: 2, ex: ['jj', 'hk', 'sk', 'mc', 'bp', 'sb'] },
-  { id: 'cuerpo',n: 'Cuerpo entero',         a: 'cuerpo',  r: 2, ex: ['sq', 'pu', 'lg', 'pl', 'gb', 'mc'] },
-  { id: 'abs',   n: 'Abdominales definidos', a: 'abs',     r: 2, ex: ['cu', 'bc', 'lr', 'rt', 'db', 'pl'] },
-  { id: 'abs2',  n: 'Core exprés',           a: 'abs',     r: 1, ex: ['pl', 'db', 'sp', 'bc'] },
-  { id: 'glu',   n: 'Glúteos firmes',        a: 'gluteos', r: 2, ex: ['gb', 'dk', 'fh', 'su', 'sgb', 'dp'] },
-  { id: 'pier',  n: 'Piernas fuertes',       a: 'piernas', r: 2, ex: ['sq', 'lg', 'wl', 'cr', 'su', 'bs'] },
-  { id: 'esp',   n: 'Espalda y postura',     a: 'espalda', r: 2, ex: ['sm', 'sw', 'ytw', 'rw', 'bd', 'cv'] },
-  { id: 'bra',   n: 'Brazos tonificados',    a: 'brazos',  r: 2, ex: ['dm', 'td', 'st', 'ac', 'pu'] },
-  { id: 'pec',   n: 'Pecho y empuje',        a: 'pecho',   r: 2, ex: ['pu', 'ip', 'kp', 'hp', 'dm'] },
-  { id: 'bras',  n: 'Quema rápida de brazos',a: 'brazos',  r: 1, ex: ['ac', 'st', 'td', 'dm'] },
+  { id: 'hiit',  n: 'HIIT quema grasa',      a: 'cardio',  r: 2, ex: ['jj', 'hk', 'sk', 'mc', 'bp', 'sb'],
+    lv: { 1: ['mrc', 'sb', 'jj', 'bps', 'mc'], 3: ['jj', 'hk', 'sk', 'mc', 'bpp', 'js', 'sb'] } },
+  { id: 'cuerpo',n: 'Cuerpo entero',         a: 'cuerpo',  r: 2, ex: ['sq', 'pu', 'lg', 'pl', 'gb', 'mc'],
+    lv: { 1: ['csq', 'kp', 'lg', 'plk', 'gb'], 3: ['js', 'dm', 'jl', 'plt', 'sgb', 'mc', 'bpp'] } },
+  { id: 'abs',   n: 'Abdominales definidos', a: 'abs',     r: 2, ex: ['cu', 'bc', 'lr', 'rt', 'db', 'pl'],
+    lv: { 1: ['cu', 'db', 'bc', 'plk', 'lr'], 3: ['bc', 'lr', 'rt', 'sp', 'plt', 'cu', 'pl'] } },
+  { id: 'abs2',  n: 'Core exprés',           a: 'abs',     r: 1, ex: ['pl', 'db', 'sp', 'bc'],
+    lv: { 1: ['db', 'plk', 'cu'], 3: ['plt', 'sp', 'lr', 'rt', 'pl'] } },
+  { id: 'glu',   n: 'Glúteos firmes',        a: 'gluteos', r: 2, ex: ['gb', 'dk', 'fh', 'su', 'sgb', 'dp'],
+    lv: { 1: ['gb', 'dk', 'fh', 'dp', 'wl'], 3: ['sgb', 'dk', 'fh', 'js', 'bs', 'dp', 'su'] } },
+  { id: 'pier',  n: 'Piernas fuertes',       a: 'piernas', r: 2, ex: ['sq', 'lg', 'wl', 'cr', 'su', 'bs'],
+    lv: { 1: ['csq', 'wl', 'cr', 'lg', 'su'], 3: ['js', 'jl', 'bs', 'wl', 'su', 'cr', 'lg'] } },
+  { id: 'esp',   n: 'Espalda y postura',     a: 'espalda', r: 2, ex: ['sm', 'sw', 'ytw', 'rw', 'bd', 'cv'],
+    lv: { 1: ['cv', 'sm', 'bd', 'rw', 'ch'], 3: ['ytw', 'sw', 'sm', 'rw', 'bd', 'dp', 'st'] } },
+  { id: 'bra',   n: 'Brazos tonificados',    a: 'brazos',  r: 2, ex: ['dm', 'td', 'st', 'ac', 'pu'],
+    lv: { 1: ['ac', 'kp', 'hp', 'ip'], 3: ['dm', 'td', 'dpu', 'st', 'pu', 'plt', 'ac'] } },
+  { id: 'pec',   n: 'Pecho y empuje',        a: 'pecho',   r: 2, ex: ['pu', 'ip', 'kp', 'hp', 'dm'],
+    lv: { 1: ['ip', 'kp', 'hp', 'ac'], 3: ['dpu', 'dm', 'pu', 'st', 'hp', 'td'] } },
+  { id: 'bras',  n: 'Quema rápida de brazos',a: 'brazos',  r: 1, ex: ['ac', 'st', 'td', 'dm'],
+    lv: { 1: ['ac', 'kp', 'hp'], 3: ['dm', 'dpu', 'td', 'st', 'ac'] } },
   { id: 'est',   n: 'Estiramiento total',    a: 'estira',  r: 1, ex: ['cv', 'ch', 'qs', 'hs', 'bf', 'tr', 'co'], gentle: true },
   { id: 'mov',   n: 'Despertar 5 min',       a: 'estira',  r: 1, ex: ['cv', 'tr', 'ac', 'jj', 'sq'], gentle: true },
   { id: 'ini',   n: 'Primeros pasos',        a: 'cuerpo',  r: 1, ex: ['jj', 'sq', 'kp', 'gb', 'cu', 'cv'] }
 ];
 
+// w: segundos de trabajo · rest: descanso · gw: sostén en rutinas suaves · extra: rondas adicionales
 const LEVELS = {
-  1: { n: 'Principiante', w: 30, rest: 20 },
-  2: { n: 'Intermedio',   w: 40, rest: 15 },
-  3: { n: 'Avanzado',     w: 45, rest: 10 }
+  1: { n: 'Principiante', w: 30, rest: 30, gw: 35, extra: 0, d: 'Bajo impacto, variantes más suaves y descansos largos.' },
+  2: { n: 'Intermedio',   w: 40, rest: 20, gw: 40, extra: 0, d: 'Ritmo constante con los ejercicios completos.' },
+  3: { n: 'Avanzado',     w: 50, rest: 10, gw: 50, extra: 1, d: 'Alta intensidad: saltos, variantes difíciles, una ronda más y descansos cortos.' }
 };
 
 const GOALS = {

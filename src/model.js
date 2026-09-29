@@ -16,12 +16,17 @@ export const fromKey = k => new Date(`${k}T00:00`);
 const dayDiff = (a, b) => Math.round((fromKey(dkey(a)) - fromKey(dkey(b))) / 864e5); // robusto ante cambio de hora
 
 /* ---------- Rutinas ---------- */
-export const customToWorkout = c => ({ id: c.id, n: c.name, a: 'cuerpo', r: 1, ex: c.ex, custom: true });
+export const customToWorkout = c => ({ id: c.id, n: c.name, a: 'cuerpo', r: 1, ex: c.ex, custom: true, fixed: true });
 export const allWorkouts = (custom = []) => [...WORKOUTS, ...custom.map(customToWorkout)];
 
+// Ejercicios y rondas dependen del nivel: Principiante = variantes suaves, Avanzado = más exigentes y una ronda extra
+export const exercisesFor = (w, lv) => (w.lv && w.lv[lv]) || w.ex;
+export const roundsFor = (w, lv) => (w.gentle || w.fixed ? w.r : w.r + LEVELS[lv].extra);
+
 export function steps(w, lv, restOverride = 0) {
-  const L = LEVELS[lv], rest = restOverride || L.rest, work = w.gentle ? L.w + 10 : L.w, out = [];
-  for (let r = 0; r < w.r; r++) w.ex.forEach(id => out.push({ id, work, rest, round: r + 1 }));
+  const L = LEVELS[lv], rest = restOverride || (w.gentle ? 10 : L.rest), work = w.gentle ? L.gw : L.w, out = [];
+  const list = exercisesFor(w, lv), rounds = roundsFor(w, lv);
+  for (let r = 0; r < rounds; r++) list.forEach(id => out.push({ id, work, rest, round: r + 1 }));
   return out;
 }
 export const minutes = (w, lv, restOverride = 0) =>

@@ -57,6 +57,26 @@ test('explorar: filtra, busca y abre el detalle con nivel', async ({ page }) => 
   await expect(page.getByRole('dialog')).toHaveCount(0);
 });
 
+test('los niveles cambian la rutina: más ejercicios, más duración y variantes distintas', async ({ page }) => {
+  await ready(page, onboarded);
+  await page.goto('/#/explorar');
+  await page.getByRole('button', { name: 'Ver Cuerpo entero' }).click();
+  const dlg = page.getByRole('dialog');
+  const items = dlg.locator('ol.xlist li');
+  await expect(items).toHaveCount(5); // Principiante
+  await expect(items.first()).toContainText('Sentadilla a la silla');
+  await expect(dlg.locator('#meta')).toContainText('10 min');
+  await dlg.getByRole('button', { name: 'Intermedio' }).click();
+  await expect(items).toHaveCount(6);
+  await expect(items.first()).toContainText('Sentadillas');
+  await expect(dlg.locator('#meta')).toContainText('12 min');
+  await dlg.getByRole('button', { name: 'Avanzado' }).click();
+  await expect(items).toHaveCount(7);
+  await expect(items.first()).toContainText('Sentadilla con salto');
+  await expect(dlg.locator('#meta')).toContainText('3 rondas');
+  await expect(dlg.locator('#meta')).toContainText('21 min');
+});
+
 test('constructor: crea una rutina propia y persiste tras recargar', async ({ page }) => {
   await ready(page, onboarded);
   await page.goto('/#/explorar');
@@ -92,7 +112,7 @@ test('reproductor: cuenta atrás, pausa, siguiente y salir sin guardar', async (
 });
 
 test('ejercicio con clip real: el video se reproduce y se detiene al pausar', async ({ page }) => {
-  await ready(page, onboarded);
+  await ready(page, { profile: { goal: 'fat', level: 2, days: 3, done: true } }); // Sentadillas abre el nivel Intermedio
   await page.goto('/#/explorar');
   await page.getByRole('button', { name: 'Empezar Cuerpo entero' }).click();
   const player = page.getByRole('dialog', { name: /Entrenamiento/ });

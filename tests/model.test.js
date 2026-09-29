@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
-import { WORKOUTS, EX, AREAS, GOALS } from '../src/data.js';
+import { WORKOUTS, EX, AREAS, GOALS, LEVELS } from '../src/data.js';
 import { ANIM_IDS } from '../src/anim.js';
-import { dkey, mondayOf, steps, minutes, kcal, buildPlan, planExpired, streak, todaysPick, sanitizeState, defaultState } from '../src/model.js';
+import { dkey, mondayOf, steps, minutes, exercisesFor, roundsFor, kcal, buildPlan, planExpired, streak, todaysPick, sanitizeState, defaultState } from '../src/model.js';
 
 const at = (y, m, d, h = 12) => new Date(y, m - 1, d, h);
 
@@ -15,6 +15,9 @@ describe('catálogo', () => {
   it('los planes por objetivo solo referencian rutinas reales', () => {
     const ids = new Set(WORKOUTS.map(w => w.id));
     for (const g of Object.values(GOALS)) for (const id of g.seq) expect(ids.has(id), id).toBe(true);
+  });
+  it('las listas por nivel usan ejercicios existentes', () => {
+    for (const w of WORKOUTS) for (const lv of [1, 2, 3]) for (const id of exercisesFor(w, lv)) expect(EX[id], `${w.id}@${lv}:${id}`).toBeTruthy();
   });
   it('todo ejercicio tiene animación', () => {
     for (const id of Object.keys(EX)) expect(ANIM_IDS.includes(id), id).toBe(true);
@@ -32,14 +35,49 @@ describe('fechas', () => {
 describe('sesión', () => {
   const w = WORKOUTS.find(x => x.id === 'cuerpo');
   it('genera ejercicios × rondas con el descanso del nivel', () => {
-    const s = steps(w, 1);
+    const s = steps(w, 2);
     expect(s).toHaveLength(w.ex.length * w.r);
-    expect(s[0]).toMatchObject({ work: 30, rest: 20, round: 1 });
+    expect(s[0]).toMatchObject({ work: 40, rest: 20, round: 1 });
   });
   it('respeta el descanso elegido por el usuario', () => expect(steps(w, 3, 30)[0].rest).toBe(30));
   it('minutos ≥ 1 y kcal menor en estiramiento', () => {
     expect(minutes(WORKOUTS.find(x => x.id === 'abs2'), 3)).toBeGreaterThanOrEqual(1);
     expect(kcal(10, { a: 'estira' })).toBeLessThan(kcal(10, { a: 'cardio' }));
+  });
+});
+
+describe('niveles', () => {
+  const trainable = WORKOUTS.filter(w => !w.gentle);
+  it('la duración crece: Principiante < Intermedio < Avanzado', () => {
+    for (const w of trainable.filter(x => x.id !== 'ini')) {
+      const [a, b, c] = [1, 2, 3].map(lv => minutes(w, lv));
+      expect(a, `${w.id} 1<2`).toBeLessThan(b);
+      expect(b, `${w.id} 2<3`).toBeLessThan(c);
+    }
+  });
+  it('cada nivel cambia los ejercicios (no solo los tiempos)', () => {
+    for (const w of trainable.filter(x => x.id !== 'ini')) {
+      const [a, b, c] = [1, 2, 3].map(lv => exercisesFor(w, lv).join());
+      expect(new Set([a, b, c]).size, w.id).toBe(3);
+    }
+  });
+  it('Avanzado tiene una ronda más y descansos más cortos que Principiante', () => {
+    const w = WORKOUTS.find(x => x.id === 'cuerpo');
+    expect(roundsFor(w, 3)).toBe(roundsFor(w, 1) + 1);
+    expect(LEVELS[3].rest).toBeLessThan(LEVELS[1].rest);
+    expect(LEVELS[3].w).toBeGreaterThan(LEVELS[1].w);
+  });
+  it('Principiante evita ejercicios de salto', () => {
+    const jumps = ['js', 'jl', 'bpp', 'sk', 'bp'];
+    for (const w of trainable) for (const id of exercisesFor(w, 1)) expect(jumps.includes(id), `${w.id}:${id}`).toBe(false);
+  });
+  it('rutinas propias y rápidas no cambian de rondas', () => {
+    expect(roundsFor({ r: 1, fixed: true }, 3)).toBe(1);
+  });
+  it('las rutinas suaves solo alargan el sostén', () => {
+    const w = WORKOUTS.find(x => x.id === 'est');
+    expect(exercisesFor(w, 1)).toEqual(exercisesFor(w, 3));
+    expect(steps(w, 3)[0].work).toBeGreaterThan(steps(w, 1)[0].work);
   });
 });
 

@@ -2,7 +2,7 @@ import './styles.css';
 import { animSvg } from './anim.js';
 import { registerSW } from 'virtual:pwa-register';
 import { AREAS, EX, LEVELS, GOALS } from './data.js';
-import { DOW, dkey, addDays, mondayOf, sanitizeState, allWorkouts as allW, steps as stepsOf, minutes as minutesOf, kcal, buildPlan as planFor, doneOn as doneOnLog, streak as streakOf, todaysPick as pickFor, planExpired } from './model.js';
+import { DOW, dkey, addDays, mondayOf, sanitizeState, allWorkouts as allW, steps as stepsOf, exercisesFor, roundsFor, minutes as minutesOf, kcal, buildPlan as planFor, doneOn as doneOnLog, streak as streakOf, todaysPick as pickFor, planExpired } from './model.js';
 /* ---------- Utilidades ---------- */
 const $ = (s, r = document) => r.querySelector(s);
 const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -162,7 +162,7 @@ function wcard(w) {
     <button class="wmain" data-w="${w.id}" type="button" aria-label="Ver ${esc(w.n)}">
       <span class="art ${IMG[w.a] ? 'has-photo' : ''}">${glyph(w.a)}${photo(w.a, '(min-width:760px) 300px, 50vw')}</span>
       <span class="body"><span class="tag">${w.custom ? 'Mi rutina' : AREAS[w.a].n}</span><h3>${esc(w.n)}</h3>
-      <span class="pill">${ic('clock')} ${mins} min · ${w.ex.length} ejercicios</span></span>
+      <span class="pill">${ic('clock')} ${mins} min · ${exercisesFor(w, lv).length} ejercicios</span></span>
     </button>
     <button class="go" data-go="${w.id}" type="button" aria-label="Empezar ${esc(w.n)}">${ic('play')}</button></article>`;
 }
@@ -296,11 +296,12 @@ function bindView(name) {
 /* ---------- Hojas ---------- */
 function detail(id, lv = S.profile.level) {
   const w = getW(id); if (!w) return;
-  const list = steps(w, lv).slice(0, w.ex.length);
+  const list = steps(w, lv).slice(0, exercisesFor(w, lv).length), rounds = roundsFor(w, lv), L = LEVELS[lv];
   sheet(`<div class="row between"><span class="tag" style="--c:${AREAS[w.a].c}">${w.custom ? 'Mi rutina' : AREAS[w.a].n}</span><button class="icon-btn" data-close aria-label="Cerrar">${ic('x')}</button></div>
     <h1 style="margin:10px 0 4px">${esc(w.n)}</h1>
-    <p class="muted small" id="meta">${minutes(w, lv)} min · ${w.r} ${w.r > 1 ? 'rondas' : 'ronda'} · ~${kcal(minutes(w, lv), w)} kcal</p>
-    <div class="seg" style="margin:14px 0">${[1, 2, 3].map(n => `<button data-lv="${n}" aria-pressed="${n === lv}">${LEVELS[n].n}</button>`).join('')}</div>
+    <p class="muted small" id="meta">${minutes(w, lv)} min · ${rounds} ${rounds > 1 ? 'rondas' : 'ronda'} · ~${kcal(minutes(w, lv), w)} kcal</p>
+    <div class="seg" style="margin:14px 0 8px">${[1, 2, 3].map(n => `<button data-lv="${n}" aria-pressed="${n === lv}">${LEVELS[n].n}</button>`).join('')}</div>
+    <p class="small muted" style="margin-bottom:14px">${esc(L.d)} ${w.gentle ? '' : `${list[0].work} s de trabajo · ${list[0].rest} s de descanso.`}</p>
     <ol class="xlist">${list.map((s, i) => `<li><div class="thumb ${VID[s.id] ? 'real' : ''}">${VID[s.id] ? clipHtml(s.id, true) : animSvg(s.id)}</div><div><b>${i + 1}. ${esc(EX[s.id].n)}</b><p class="small muted">${esc(EX[s.id].t)}</p></div></li>`).join('')}</ol>
     <div class="row" style="margin-top:18px"><button class="btn block" id="go">${ic('play')} Empezar</button>${w.custom ? '<button class="btn line" id="del" aria-label="Eliminar rutina">Eliminar</button>' : ''}</div>`,
   el => {
@@ -315,7 +316,8 @@ function onboarding(edit = false) {
   const draw = () => sheet(`<h1>${edit ? 'Ajusta tu plan' : 'Crea tu plan en 10 segundos'}</h1>
     <p class="muted" style="margin:4px 0 18px">${edit ? '' : 'Sin cuentas ni correos. Puedes cambiarlo cuando quieras.'}</p>
     <h2 style="font-size:1rem">Mi objetivo</h2><div class="opts" style="margin:8px 0 18px">${Object.entries(GOALS).map(([k, g]) => `<button class="opt" data-g="${k}" aria-pressed="${p.goal === k}">${g.n}</button>`).join('')}</div>
-    <h2 style="font-size:1rem">Mi nivel</h2><div class="seg" style="margin:8px 0 18px">${[1, 2, 3].map(n => `<button data-l="${n}" aria-pressed="${p.level === n}">${LEVELS[n].n}</button>`).join('')}</div>
+    <h2 style="font-size:1rem">Mi nivel</h2><div class="seg" style="margin:8px 0 6px">${[1, 2, 3].map(n => `<button data-l="${n}" aria-pressed="${p.level === n}">${LEVELS[n].n}</button>`).join('')}</div>
+    <p class="small muted" style="margin-bottom:18px">${esc(LEVELS[p.level].d)}</p>
     <h2 style="font-size:1rem">Días por semana</h2><div class="seg" style="margin:8px 0 16px">${[2, 3, 4, 5, 6].map(n => `<button data-d="${n}" aria-pressed="${p.days === n}">${n}</button>`).join('')}</div>
     <p class="small muted" style="margin-bottom:14px">Fluir ofrece rutinas generales de ejercicio, no consejo médico. Si tienes una condición de salud, una lesión o estás embarazada, consulta a un profesional antes de empezar.</p>
     <button class="btn block" id="ok">${edit ? 'Guardar' : 'Empezar'}</button>${edit ? '<button class="btn line block" data-close style="margin-top:8px">Cancelar</button>' : ''}`,
@@ -392,13 +394,13 @@ function builder() {
 }
 
 function quickWorkout(min) {
-  // Rutina a medida: mezcla ejercicios de tu objetivo hasta llegar a los minutos pedidos
+  // Rutina a medida: mezcla ejercicios de tu objetivo (en la versión de tu nivel) hasta llegar a los minutos pedidos
   const lv = S.profile.level, L = LEVELS[lv], per = (L.w + (S.settings.rest || L.rest)) / 60;
-  const pool = GOALS[S.profile.goal].seq.flatMap(id => getW(id).ex);
+  const pool = GOALS[S.profile.goal].seq.flatMap(id => exercisesFor(getW(id), lv));
   const uniq = [...new Set(pool)].sort(() => Math.random() - .5);
   const count = Math.max(3, Math.round(min / per));
   const ex = Array.from({ length: count }, (_, i) => uniq[i % uniq.length]);
-  startWorkout(null, lv, { id: 'quick', n: `Rápido · ${min} min`, a: 'cuerpo', r: 1, ex });
+  startWorkout(null, lv, { id: 'quick', n: `Rápido · ${min} min`, a: 'cuerpo', r: 1, ex, fixed: true });
 }
 
 /* ---------- Reproductor ---------- */
@@ -449,7 +451,7 @@ function startWorkout(id, lv = S.profile.level, custom) {
     el.innerHTML = `<div class="top"><button class="icon-btn" id="quit" aria-label="Salir">${ic('x')}</button>
       <div class="progress" role="progressbar" aria-valuemin="0" aria-valuemax="${list.length}" aria-valuenow="${i}"><i style="width:${(i + (phase === 'rest' ? 1 : 0)) / list.length * 100}%"></i></div>
       <span class="small muted">${i + 1}/${list.length}</span></div>
-      <div class="stage ${clip ? 'with-clip' : ''}"><p class="small muted">${w.r > 1 ? `Ronda ${s.round} de ${w.r} · ` : ''}${esc(w.n)}</p>
+      <div class="stage ${clip ? 'with-clip' : ''}"><p class="small muted">${list[list.length - 1].round > 1 ? `Ronda ${s.round} de ${list[list.length - 1].round} · ` : ''}${esc(w.n)}</p>
         <h1>${esc(label)}</h1>
         ${clip ? `<div class="clipwrap" style="--c:${a.c}">${clip}<div class="clipfoot"><span class="time" id="tm" aria-live="off">${left}</span></div><div class="bar"><i id="bar"></i></div></div>` : `<div class="ring" style="--c:${a.c}"><svg viewBox="0 0 100 100"><circle class="bg" cx="50" cy="50" r="44"/><circle class="fg" id="fg" cx="50" cy="50" r="44" stroke-dasharray="${R}" stroke-dashoffset="0"/></svg>
           <div class="core has-anim">${animSvg(shownId)}</div></div>
