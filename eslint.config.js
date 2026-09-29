@@ -6,6 +6,6 @@ export default [
   js.configs.recommended,
   { files: ['src/**/*.js'], languageOptions: { ecmaVersion: 2023, sourceType: 'module', globals: { ...globals.browser, __APP_VERSION__: 'readonly' } } },
   { files: ['e2e/**/*.js'], languageOptions: { ecmaVersion: 2023, sourceType: 'module', globals: { ...globals.node, ...globals.browser } } },
-  { files: ['scripts/**/*.mjs', 'tests/**/*.js', 'vite.config.js', 'eslint.config.js', 'playwright.config.js'], languageOptions: { ecmaVersion: 2023, sourceType: 'module', globals: globals.node } },
+  { files: ['scripts/**/*.mjs', 'tests/**/*.js', 'vite.config.js', 'eslint.config.js', 'playwright.config.js', 'vitest.config.js'], languageOptions: { ecmaVersion: 2023, sourceType: 'module', globals: globals.node } },
   { rules: { 'no-unused-vars': ['warn', { args: 'none', caughtErrors: 'none' }] } }
 ];
