@@ -204,3 +204,14 @@ svg.anim .ob{fill:var(--line)}
 @media (min-width:760px){#banner{bottom:24px;left:calc(50% + 110px)}}
 main:focus{outline:0}
 @media (prefers-contrast:more){:root{--line:#5b6068;--muted:#c4c7cc}}
+
+/* Clips reales (vertical 2:3) */
+.clipwrap{position:relative;height:min(46vh,440px);aspect-ratio:2/3;border-radius:26px;overflow:hidden;background:#000;box-shadow:var(--shadow)}
+.clip{display:block;width:100%;height:100%;object-fit:cover}
+.clipfoot{position:absolute;left:0;right:0;bottom:0;padding:44px 16px 14px;display:flex;align-items:flex-end;justify-content:flex-start;background:linear-gradient(180deg,transparent,rgba(0,0,0,.72));color:#fff}
+.clipfoot .time{font-size:3rem;text-shadow:0 2px 12px rgba(0,0,0,.5)}
+.clipwrap .bar{position:absolute;left:0;right:0;bottom:0;height:5px;background:rgba(255,255,255,.22)}
+.clipwrap .bar i{display:block;height:100%;width:100%;background:var(--pri);transition:width .25s linear}
+.stage.with-clip{gap:12px}
+.xlist .thumb.real{width:64px;aspect-ratio:2/3;padding:0;overflow:hidden;background:#000}
+.xlist .thumb.real .clip{height:100%}

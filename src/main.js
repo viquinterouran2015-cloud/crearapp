@@ -131,11 +131,28 @@ function photo(key, sizes, eager = false) {
   const p = IMG[key]; if (!p) return '';
   return `<img class="photo" alt="" src="${p.src}" srcset="${p.srcset}" sizes="${sizes}" style="background-image:url(${p.lqip})" decoding="async" ${eager ? 'fetchpriority="high"' : 'loading="lazy"'}>`;
 }
-fetch('img/manifest.json').then(r => (r.ok ? r.json() : {})).then(j => {
+// Clips reales de personas (opcionales): public/video/manifest.json lo genera `npm run video`
+let VID = {};
+const dataSaver = navigator.connection?.saveData === true;
+function clipHtml(id, still = false) {
+  const v = VID[id]; if (!v) return '';
+  if (still) return `<img class="clip" src="${v.poster}" alt="" width="${v.w}" height="${v.h}" loading="lazy" decoding="async">`;
+  return `<video class="clip" poster="${v.poster}" width="${v.w}" height="${v.h}" muted loop playsinline preload="${dataSaver ? 'none' : 'auto'}" aria-hidden="true" tabindex="-1" disablepictureinpicture disableremoteplayback><source src="${v.src}" type="video/mp4">${v.webm ? `<source src="${v.webm}" type="video/webm">` : ''}</video>`;
+}
+// Reproduce/pausa los clips visibles (autoplay solo si el usuario no pidió menos movimiento ni ahorro de datos)
+function driveClips(root, playing) {
+  root.querySelectorAll('video.clip').forEach(v => {
+    v.muted = true;
+    if (playing && !reduceMotion && !dataSaver) v.play().catch(() => {}); else v.pause();
+  });
+}
+const loadCatalog = (url, set) => fetch(url).then(r => (r.ok ? r.json() : {})).then(j => {
   if (!Object.keys(j).length) return;
-  IMG = j;
+  set(j);
   if (overlay.hidden && !document.querySelector('.player')) route();
 }).catch(() => {});
+loadCatalog('img/manifest.json', j => { IMG = j; });
+loadCatalog('video/manifest.json', j => { VID = j; });
 
 /* ---------- Tarjetas ---------- */
 function wcard(w) {
@@ -284,7 +301,7 @@ function detail(id, lv = S.profile.level) {
     <h1 style="margin:10px 0 4px">${esc(w.n)}</h1>
     <p class="muted small" id="meta">${minutes(w, lv)} min · ${w.r} ${w.r > 1 ? 'rondas' : 'ronda'} · ~${kcal(minutes(w, lv), w)} kcal</p>
     <div class="seg" style="margin:14px 0">${[1, 2, 3].map(n => `<button data-lv="${n}" aria-pressed="${n === lv}">${LEVELS[n].n}</button>`).join('')}</div>
-    <ol class="xlist">${list.map((s, i) => `<li><div class="thumb">${animSvg(s.id)}</div><div><b>${i + 1}. ${esc(EX[s.id].n)}</b><p class="small muted">${esc(EX[s.id].t)}</p></div></li>`).join('')}</ol>
+    <ol class="xlist">${list.map((s, i) => `<li><div class="thumb ${VID[s.id] ? 'real' : ''}">${VID[s.id] ? clipHtml(s.id, true) : animSvg(s.id)}</div><div><b>${i + 1}. ${esc(EX[s.id].n)}</b><p class="small muted">${esc(EX[s.id].t)}</p></div></li>`).join('')}</ol>
     <div class="row" style="margin-top:18px"><button class="btn block" id="go">${ic('play')} Empezar</button>${w.custom ? '<button class="btn line" id="del" aria-label="Eliminar rutina">Eliminar</button>' : ''}</div>`,
   el => {
     el.querySelectorAll('[data-lv]').forEach(b => b.onclick = () => detail(id, +b.dataset.lv));
@@ -427,15 +444,16 @@ function startWorkout(id, lv = S.profile.level, custom) {
   function draw() {
     const s = list[i], e = EX[s.id], a = AREAS[e.a], nxt = list[i + 1];
     el.classList.toggle('rest', phase === 'rest'); el.classList.toggle('paused', paused);
+    const shownId = phase === 'rest' && nxt ? nxt.id : s.id, clip = clipHtml(shownId);
     const label = phase === 'ready' ? 'Prepárate' : phase === 'work' ? e.n : 'Descanso';
     el.innerHTML = `<div class="top"><button class="icon-btn" id="quit" aria-label="Salir">${ic('x')}</button>
       <div class="progress" role="progressbar" aria-valuemin="0" aria-valuemax="${list.length}" aria-valuenow="${i}"><i style="width:${(i + (phase === 'rest' ? 1 : 0)) / list.length * 100}%"></i></div>
       <span class="small muted">${i + 1}/${list.length}</span></div>
-      <div class="stage"><p class="small muted">${w.r > 1 ? `Ronda ${s.round} de ${w.r} · ` : ''}${esc(w.n)}</p>
+      <div class="stage ${clip ? 'with-clip' : ''}"><p class="small muted">${w.r > 1 ? `Ronda ${s.round} de ${w.r} · ` : ''}${esc(w.n)}</p>
         <h1>${esc(label)}</h1>
-        <div class="ring" style="--c:${a.c}"><svg viewBox="0 0 100 100"><circle class="bg" cx="50" cy="50" r="44"/><circle class="fg" id="fg" cx="50" cy="50" r="44" stroke-dasharray="${R}" stroke-dashoffset="0"/></svg>
-          <div class="core has-anim">${animSvg(phase === 'rest' && nxt ? nxt.id : s.id)}</div></div>
-        <div class="time" id="tm" aria-live="off">${left}</div>
+        ${clip ? `<div class="clipwrap" style="--c:${a.c}">${clip}<div class="clipfoot"><span class="time" id="tm" aria-live="off">${left}</span></div><div class="bar"><i id="bar"></i></div></div>` : `<div class="ring" style="--c:${a.c}"><svg viewBox="0 0 100 100"><circle class="bg" cx="50" cy="50" r="44"/><circle class="fg" id="fg" cx="50" cy="50" r="44" stroke-dasharray="${R}" stroke-dashoffset="0"/></svg>
+          <div class="core has-anim">${animSvg(shownId)}</div></div>
+        <div class="time" id="tm" aria-live="off">${left}</div>`}
         <p class="muted" style="max-width:34ch">${phase === 'rest' ? (nxt ? `Siguiente: <b>${esc(EX[nxt.id].n)}</b>` : 'Último ejercicio completado') : esc(e.t)}</p></div>
       <div class="controls"><button class="side" id="pv" aria-label="Anterior">${ic('prev')}</button>
         <button class="big" id="pp" aria-label="${paused ? 'Reanudar' : 'Pausar'}">${ic(paused ? 'play' : 'pause')}</button>
@@ -445,13 +463,17 @@ function startWorkout(id, lv = S.profile.level, custom) {
     $('#nx', el).onclick = advance; $('#pv', el).onclick = back;
     const m = $('#more', el); if (m) m.onclick = () => { left += 20; draw(); };
     if (paused || reduceMotion) el.querySelector('svg.anim')?.pauseAnimations();
+    driveClips(el, !paused);
     announce();
     paint();
   }
   const dt = 250; let last = performance.now();
   function paint() {
-    const t = $('#tm', el), fg = $('#fg', el); if (!t) return;
-    t.textContent = Math.ceil(left); fg.style.strokeDashoffset = R * (1 - left / Math.max(dur(), left));
+    const t = $('#tm', el); if (!t) return;
+    const spent = 1 - left / Math.max(dur(), left), fg = $('#fg', el), bar = $('#bar', el);
+    t.textContent = Math.ceil(left);
+    if (fg) fg.style.strokeDashoffset = R * spent;
+    if (bar) bar.style.width = `${(1 - spent) * 100}%`;
   }
   tick = setInterval(() => {
     const now = performance.now(), d = (now - last) / 1000; last = now;
