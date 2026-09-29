@@ -45,7 +45,8 @@ export default defineConfig({
         // Las fotos no se precargan (instalación ligera): se guardan al verlas
         runtimeCaching: [
           { urlPattern: /\/img\/.*\.webp$/, handler: 'CacheFirst', options: { cacheName: 'fluir-fotos', expiration: { maxEntries: 60, maxAgeSeconds: 60 * 60 * 24 * 90 } } },
-          { urlPattern: /\/img\/manifest\.json$/, handler: 'StaleWhileRevalidate', options: { cacheName: 'fluir-fotos-manifest' } }
+          { urlPattern: /\/video\/.*\.(mp4|webm|webp)$/, handler: 'CacheFirst', options: { cacheName: 'fluir-clips', rangeRequests: true, cacheableResponse: { statuses: [200] }, expiration: { maxEntries: 120, maxAgeSeconds: 60 * 60 * 24 * 90 } } },
+          { urlPattern: /\/(img|video)\/manifest\.json$/, handler: 'StaleWhileRevalidate', options: { cacheName: 'fluir-fotos-manifest' } }
         ]
       }
     })

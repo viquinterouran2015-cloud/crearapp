@@ -91,6 +91,19 @@ test('reproductor: cuenta atrás, pausa, siguiente y salir sin guardar', async (
   expect(errors).toEqual([]);
 });
 
+test('ejercicio con clip real: el video se reproduce y se detiene al pausar', async ({ page }) => {
+  await ready(page, onboarded);
+  await page.goto('/#/explorar');
+  await page.getByRole('button', { name: 'Empezar Cuerpo entero' }).click();
+  const player = page.getByRole('dialog', { name: /Entrenamiento/ });
+  await expect(player.locator('video.clip')).toHaveCount(1); // Sentadillas tiene clip
+  await expect.poll(() => player.locator('video.clip').evaluate(v => v.currentTime), { timeout: 8000 }).toBeGreaterThan(0.2);
+  await player.getByRole('button', { name: 'Pausar' }).click();
+  expect(await player.locator('video.clip').evaluate(v => v.paused)).toBe(true);
+  await player.getByRole('button', { name: 'Reanudar' }).click();
+  await expect.poll(() => player.locator('video.clip').evaluate(v => v.paused)).toBe(false);
+});
+
 test('entrenamiento completo: se registra y sube la racha', async ({ page }) => {
   await page.clock.install();
   await ready(page, onboarded);

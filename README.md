@@ -18,6 +18,7 @@ npm run lint      # ESLint
 npm test          # pruebas unitarias (Vitest)
 npm run e2e       # pruebas de extremo a extremo + accesibilidad (Playwright + axe)
 npm run img       # optimiza las fotos de photos-src/ (ver photos-src/README.md)
+npm run video     # convierte los clips de videos-src/ en MP4+WebM en bucle (ver videos-src/README.md)
 ```
 
 ## Estructura
@@ -29,6 +30,7 @@ npm run img       # optimiza las fotos de photos-src/ (ver photos-src/README.md)
 | `src/main.js` | Vistas, navegación, hojas modales, reproductor y ajustes |
 | `tests/` · `e2e/` | Unitarias · flujos completos y auditoría WCAG (móvil y escritorio) |
 | `photos-src/` | Fotos originales opcionales → WebP responsivo en `public/img/` |
+| `videos-src/` | Clips de personas reales por ejercicio → `public/video/` (MP4 + WebM + póster) |
 | `.github/workflows/` | `ci.yml` (lint + pruebas en cada PR) · `deploy.yml` (GitHub Pages al fusionar en `main`) |
 
 ## Decisiones de calidad
