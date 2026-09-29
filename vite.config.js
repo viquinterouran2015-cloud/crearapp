@@ -1,13 +1,24 @@
 import { defineConfig } from 'vite';
+import { readFileSync } from 'node:fs';
 import { VitePWA } from 'vite-plugin-pwa';
+
+const pkg = JSON.parse(readFileSync('./package.json', 'utf8'));
+// Política de contenido estricta solo en producción (el modo dev necesita scripts en línea para HMR)
+const CSP = "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self'; connect-src 'self'; manifest-src 'self'; worker-src 'self'; base-uri 'self'; form-action 'self'; object-src 'none'";
+const csp = () => ({ name: 'fluir-csp', apply: 'build', transformIndexHtml: html => html.replace('<!--csp-->', `<meta http-equiv="Content-Security-Policy" content="${CSP}">`) });
 
 export default defineConfig({
   base: './',
+  define: { __APP_VERSION__: JSON.stringify(pkg.version) },
+  build: { sourcemap: false, target: 'es2020' },
   plugins: [
+    csp(),
     VitePWA({
-      registerType: 'autoUpdate',
+      registerType: 'prompt',
+      injectRegister: false,
       includeAssets: ['icons/*.png', 'icons/icon.svg'],
       manifest: {
+        id: './',
         name: 'Fluir · Entrena en casa',
         short_name: 'Fluir',
         description: 'Rutinas en casa sin anuncios ni cuentas.',

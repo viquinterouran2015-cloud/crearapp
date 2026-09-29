@@ -1,6 +1,8 @@
 import './styles.css';
 import { animSvg } from './anim.js';
-import { AREAS, EX, WORKOUTS, LEVELS, GOALS } from './data.js';
+import { registerSW } from 'virtual:pwa-register';
+import { AREAS, EX, LEVELS, GOALS } from './data.js';
+import { DOW, dkey, addDays, mondayOf, sanitizeState, allWorkouts as allW, steps as stepsOf, minutes as minutesOf, kcal, buildPlan as planFor, doneOn as doneOnLog, streak as streakOf, todaysPick as pickFor, planExpired } from './model.js';
 /* ---------- Utilidades ---------- */
 const $ = (s, r = document) => r.querySelector(s);
 const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -30,73 +32,92 @@ const GLYPH = {
 };
 const glyph = a => `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="${GLYPH[a]}" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
 
-const dkey = (d = new Date()) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-const addDays = (d, n) => { const x = new Date(d); x.setDate(x.getDate() + n); return x; };
-const mondayOf = d => addDays(new Date(d.getFullYear(), d.getMonth(), d.getDate()), -((d.getDay() + 6) % 7));
-const DOW = ['L', 'M', 'X', 'J', 'V', 'S', 'D'];
 
 /* ---------- Estado (localStorage, sin cuentas) ---------- */
 const KEY = 'fluir:v1';
-const DEFAULT = { profile: { goal: 'tone', level: 1, days: 3, done: false },
-  settings: { voice: true, sound: true, rest: 0, theme: 'dark', remind: '' },
-  plan: null, log: [], weights: [], custom: [] };
 let S;
-try { S = Object.assign(structuredClone(DEFAULT), JSON.parse(localStorage.getItem(KEY) || '{}')); } catch { S = structuredClone(DEFAULT); }
-const save = () => { try { localStorage.setItem(KEY, JSON.stringify(S)); } catch { /* modo privado */ } };
+try { S = sanitizeState(JSON.parse(localStorage.getItem(KEY) || 'null')); } catch { S = sanitizeState(null); }
+const save = () => { try { localStorage.setItem(KEY, JSON.stringify(S)); } catch { /* modo privado o sin espacio */ } };
 const applyTheme = () => { const t = S.settings.theme; t === 'auto' ? document.documentElement.removeAttribute('data-theme') : document.documentElement.setAttribute('data-theme', t); };
-if (!S.settings.themeChosen) S.settings.theme = 'dark'; // nuevo diseño oscuro por defecto
 applyTheme();
 
-/* ---------- Modelo ---------- */
-const allWorkouts = () => [...WORKOUTS, ...S.custom.map(c => ({ id: c.id, n: c.name, a: 'cuerpo', r: 1, ex: c.ex, custom: true }))];
+/* ---------- Modelo (envoltorios sobre model.js con el estado actual) ---------- */
+const allWorkouts = () => allW(S.custom);
 const getW = id => allWorkouts().find(w => w.id === id);
-function steps(w, lv) {
-  const L = LEVELS[lv], rest = S.settings.rest || L.rest, work = w.gentle ? L.w + 10 : L.w, out = [];
-  for (let r = 0; r < w.r; r++) w.ex.forEach(id => out.push({ id, work, rest, round: r + 1 }));
-  return out;
-}
-const minutes = (w, lv) => { const s = steps(w, lv); return Math.max(1, Math.round(s.reduce((t, x) => t + x.work + x.rest, 0) / 60)); };
-const kcal = (min, w) => Math.round(min * (w && w.a === 'estira' ? 3 : 7.5));
-
-function buildPlan() {
-  const { goal, days } = S.profile, seq = GOALS[goal].seq;
-  const layouts = { 2: [1, 4], 3: [0, 2, 4], 4: [0, 1, 3, 4], 5: [0, 1, 2, 4, 5], 6: [0, 1, 2, 3, 4, 5] };
-  const idx = layouts[days] || layouts[3];
-  let n = 0;
-  const weeks = [0, 1, 2, 3].map(() => Array.from({ length: 7 }, (_, d) => idx.includes(d) ? seq[n++ % seq.length] : null));
-  S.plan = { start: dkey(mondayOf(new Date())), weeks };
-  save();
-}
-const doneOn = k => S.log.filter(l => l.date === k);
-function streak() {
-  let n = 0, d = new Date();
-  if (!doneOn(dkey(d)).length) d = addDays(d, -1);
-  while (doneOn(dkey(d)).length) { n++; d = addDays(d, -1); }
-  return n;
-}
-function todaysPick() {
-  if (S.plan) {
-    const start = new Date(S.plan.start + 'T00:00'), diff = Math.floor((new Date() - start) / 864e5);
-    const id = S.plan.weeks[Math.floor(diff / 7)]?.[diff % 7];
-    if (id && getW(id)) return { w: getW(id), planned: true };
-  }
-  const seq = GOALS[S.profile.goal].seq;
-  return { w: getW(seq[new Date().getDate() % seq.length]), planned: false };
-}
+const steps = (w, lv) => stepsOf(w, lv, S.settings.rest);
+const minutes = (w, lv) => minutesOf(w, lv, S.settings.rest);
+const buildPlan = () => { S.plan = planFor(S.profile); save(); };
+const doneOn = k => doneOnLog(S.log, k);
+const streak = () => streakOf(S.log);
+const todaysPick = () => pickFor(S);
 
 /* ---------- UI base ---------- */
 const view = $('#view'), overlay = $('#overlay');
 let toastT;
 function toast(m) { const t = $('#toast'); t.textContent = m; t.classList.add('show'); clearTimeout(toastT); toastT = setTimeout(() => t.classList.remove('show'), 2200); }
-function sheet(html, onMount) {
-  overlay.hidden = false;
-  overlay.innerHTML = `<div class="sheet" role="dialog" aria-modal="true"><div class="grab"></div>${html}</div>`;
-  overlay.onclick = e => { if (e.target === overlay) closeSheet(); };
-  overlay.querySelectorAll('[data-close]').forEach(b => b.onclick = closeSheet);
-  onMount && onMount(overlay.firstChild);
+const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
+const calmAnimations = root => { if (reduceMotion) root.querySelectorAll('svg.anim').forEach(s => s.pauseAnimations?.()); };
+let lastFocus = null;
+// Con un diálogo abierto, lo que queda detrás no debe ser alcanzable (teclado ni lector de pantalla)
+function syncInert() {
+  const player = document.querySelector('.player'), sheetOpen = !overlay.hidden;
+  $('.app').inert = sheetOpen || !!player;
+  if (player) player.inert = sheetOpen;
 }
-function closeSheet() { overlay.hidden = true; overlay.innerHTML = ''; }
-addEventListener('keydown', e => { if (e.key === 'Escape' && !overlay.hidden) closeSheet(); });
+const FOCUSABLE = 'button:not([disabled]),input:not([disabled]),select,a[href],[tabindex]:not([tabindex="-1"])';
+function sheet(html, onMount, { required = false } = {}) {
+  if (overlay.hidden) lastFocus = document.activeElement;
+  overlay.hidden = false;
+  overlay.dataset.required = required ? '1' : '';
+  overlay.innerHTML = `<div class="sheet" role="dialog" aria-modal="true"><div class="grab"></div>${html}</div>`;
+  const dlg = overlay.firstChild, title = dlg.querySelector('h1,h2');
+  if (title) { title.id = 'dlg-title'; dlg.setAttribute('aria-labelledby', 'dlg-title'); }
+  overlay.onclick = required ? null : e => { if (e.target === overlay) closeSheet(); };
+  overlay.querySelectorAll('[data-close]').forEach(b => b.onclick = closeSheet);
+  onMount && onMount(dlg);
+  calmAnimations(dlg);
+  syncInert();
+  (dlg.querySelector('[data-close]') || dlg.querySelector(FOCUSABLE))?.focus({ preventScroll: true });
+}
+function closeSheet() {
+  overlay.hidden = true; overlay.innerHTML = ''; overlay.style.zIndex = ''; overlay.dataset.required = '';
+  syncInert();
+  if (lastFocus && lastFocus.isConnected) lastFocus.focus({ preventScroll: true });
+  lastFocus = null;
+}
+addEventListener('keydown', e => {
+  if (overlay.hidden) return;
+  if (e.key === 'Escape' && !overlay.dataset.required) return closeSheet();
+  if (e.key !== 'Tab') return;
+  const f = [...overlay.querySelectorAll(FOCUSABLE)];
+  if (!f.length) return;
+  const first = f[0], last = f[f.length - 1];
+  if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
+  else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
+});
+
+// Avisos discretos: actualización de la app e instalación
+const bannerEl = $('#banner');
+function banner(text, action, onAction) {
+  bannerEl.innerHTML = `<span>${esc(text)}</span><button class="btn sm" type="button">${esc(action)}</button><button class="icon-btn" type="button" aria-label="Cerrar aviso" style="width:36px;height:36px">${ic('x')}</button>`;
+  bannerEl.hidden = false;
+  const [go, close] = bannerEl.querySelectorAll('button');
+  go.onclick = () => { bannerEl.hidden = true; onAction(); };
+  close.onclick = () => { bannerEl.hidden = true; };
+}
+const updateSW = registerSW({
+  onNeedRefresh() { banner('Hay una versión nueva de Fluir.', 'Actualizar', () => updateSW(true)); },
+  onOfflineReady() { toast('Lista para usar sin conexión'); }
+});
+let installEvt = null;
+const isStandalone = () => matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
+const isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent);
+addEventListener('beforeinstallprompt', e => { e.preventDefault(); installEvt = e; });
+addEventListener('appinstalled', () => { installEvt = null; toast('¡Fluir instalada!'); });
+async function installApp() {
+  if (!installEvt) return;
+  installEvt.prompt(); await installEvt.userChoice.catch(() => {}); installEvt = null;
+}
 
 const NAV = [['hoy', 'Hoy', 'home'], ['explorar', 'Explorar', 'compass'], ['plan', 'Plan', 'cal'], ['progreso', 'Progreso', 'chart']];
 function renderNav(cur) {
@@ -118,24 +139,25 @@ fetch('img/manifest.json').then(r => (r.ok ? r.json() : {})).then(j => {
 
 /* ---------- Tarjetas ---------- */
 function wcard(w) {
-  const lv = S.profile.level, m = minutes(w, lv), c = AREAS[w.a].c;
-  return `<article class="card wcard" style="--c:${c}" tabindex="0" data-w="${w.id}" role="button" aria-label="Ver ${esc(w.n)}">
-    <div class="art ${IMG[w.a] ? 'has-photo' : ''}">${glyph(w.a)}${photo(w.a, '(min-width:760px) 300px, 50vw')}</div>
-    <button class="go" data-go="${w.id}" aria-label="Empezar ${esc(w.n)}">${ic('play')}</button>
-    <div class="body"><span class="tag">${w.custom ? 'Mi rutina' : AREAS[w.a].n}</span><h3>${esc(w.n)}</h3>
-    <span class="pill">${ic('clock')} ${m} min · ${w.ex.length} ejercicios</span></div></article>`;
+  const lv = S.profile.level, mins = minutes(w, lv), c = AREAS[w.a].c;
+  // Tarjeta = botón principal (abre el detalle) + botón ▶ hermano (empieza directo): sin interactivos anidados
+  return `<article class="card wcard" style="--c:${c}" data-name="${esc(w.n)}">
+    <button class="wmain" data-w="${w.id}" type="button" aria-label="Ver ${esc(w.n)}">
+      <span class="art ${IMG[w.a] ? 'has-photo' : ''}">${glyph(w.a)}${photo(w.a, '(min-width:760px) 300px, 50vw')}</span>
+      <span class="body"><span class="tag">${w.custom ? 'Mi rutina' : AREAS[w.a].n}</span><h3>${esc(w.n)}</h3>
+      <span class="pill">${ic('clock')} ${mins} min · ${w.ex.length} ejercicios</span></span>
+    </button>
+    <button class="go" data-go="${w.id}" type="button" aria-label="Empezar ${esc(w.n)}">${ic('play')}</button></article>`;
 }
 function bindCards(root) {
-  root.querySelectorAll('[data-w]').forEach(el => {
-    el.onclick = e => { const g = e.target.closest('[data-go]'); g ? startWorkout(g.dataset.go) : detail(el.dataset.w); };
-    el.onkeydown = e => { if (e.key === 'Enter' && e.target === el) detail(el.dataset.w); };
-  });
+  root.querySelectorAll('[data-w]').forEach(el => { el.onclick = () => detail(el.dataset.w); });
+  root.querySelectorAll('[data-go]').forEach(el => { el.onclick = () => startWorkout(el.dataset.go); });
 }
 
 /* ---------- Vistas ---------- */
 const VIEWS = {
   hoy() {
-    const { w, planned } = todaysPick(), lv = S.profile.level, st = streak(), t = dkey();
+    const { w, planned } = todaysPick(), lv = S.profile.level, st = streak(), t = dkey(), doneToday = doneOn(t).length > 0;
     const monday = mondayOf(new Date()), h = new Date().getHours();
     const hi = h < 6 ? 'Buenas noches' : h < 13 ? 'Buenos días' : h < 20 ? 'Buenas tardes' : 'Buenas noches';
     const weekHtml = DOW.map((d, i) => { const k = dkey(addDays(monday, i)); return `<div class="${doneOn(k).length ? 'on' : ''} ${k === t ? 'today' : ''}">${d}<b>${doneOn(k).length ? ic('check') : ''}</b></div>`; }).join('');
@@ -143,7 +165,7 @@ const VIEWS = {
     const recent = [...new Map(S.log.slice().reverse().map(l => [l.wid, l])).values()].slice(0, 4).map(l => getW(l.wid)).filter(Boolean);
     return `<div class="stack"><div class="row between"><div><p class="muted small">${hi}</p><h1>¿Listo para moverte?</h1></div>
       <button class="icon-btn" data-settings aria-label="Ajustes">${ic('gear')}</button></div>
-      <section class="card hero ${IMG.hero ? 'has-photo' : ''}" style="--c:#fff">${photo('hero', '(min-width:760px) 720px, 100vw', true)}<p class="small muted">${planned ? 'Tu plan de hoy' : 'Sugerencia para hoy'}</p>
+      <section class="card hero ${IMG.hero ? 'has-photo' : ''}" style="--c:#fff">${photo('hero', '(min-width:760px) 720px, 100vw', true)}<p class="small muted">${doneToday ? '¡Hoy ya cumpliste! ¿Uno más?' : planned ? 'Tu plan de hoy' : 'Sugerencia para hoy'}</p>
         <h2 style="font-size:1.5rem;margin:4px 0 6px">${esc(w.n)}</h2>
         <p class="muted small row" style="gap:6px">${ic('clock')} ${minutes(w, lv)} min · ${LEVELS[lv].n} · ~${kcal(minutes(w, lv), w)} kcal</p>
         <div class="row" style="margin-top:18px"><button class="btn" data-start="${w.id}">${ic('play')} Empezar ahora</button>
@@ -151,6 +173,7 @@ const VIEWS = {
       <div class="card streak row between"><div class="row">${ic('flame')}<div><b>${st} ${st === 1 ? 'día' : 'días'} de racha</b><p class="small muted">${st ? 'Sigue así, lo estás logrando.' : 'Un entrenamiento hoy empieza tu racha.'}</p></div></div></div>
       <div class="card"><div class="week">${weekHtml}</div></div></div>
       <section class="sec"><h2>Rápido: elige tu tiempo</h2><div class="chips" style="flex-wrap:wrap;overflow:visible">${quick}</div></section>
+      ${installEvt && !isStandalone() && !S.settings.installDismissed ? `<div class="card row between" style="margin-top:20px"><div><b>Instala Fluir</b><p class="small muted">Ábrela como una app, sin navegador y sin conexión.</p></div><div class="row"><button class="btn sm" data-install>Instalar</button><button class="icon-btn" data-nodismiss aria-label="No mostrar más" style="width:36px;height:36px">${ic('x')}</button></div></div>` : ''}
       ${recent.length ? `<section class="sec"><h2>Repite tus favoritas</h2><div class="grid">${recent.map(wcard).join('')}</div></section>` : ''}`;
   },
 
@@ -215,23 +238,29 @@ const VIEWS = {
 };
 
 /* ---------- Router ---------- */
-function route() {
+const TITLES = { hoy: 'Hoy', explorar: 'Explorar', plan: 'Plan', progreso: 'Progreso' };
+function route(moved = false) {
   const [path, qs] = (location.hash.slice(2) || 'hoy').split('?');
-  const name = VIEWS[path] && !path.startsWith('_') ? path : 'hoy';
+  const name = TITLES[path] ? path : 'hoy';
+  if (S.plan && planExpired(S.plan)) buildPlan(); // el ciclo de 4 semanas terminó: se renueva
+  document.title = `${TITLES[name]} · Fluir`;
   renderNav(name);
   view.innerHTML = VIEWS[name]();
   bindView(name);
-  scrollTo(0, 0);
+  calmAnimations(view);
+  if (moved === true) { scrollTo(0, 0); view.focus({ preventScroll: true }); }
   if (!S.profile.done) onboarding();
   else if (qs === 'go=1') { history.replaceState(null, '', '#/hoy'); startWorkout(todaysPick().w.id); }
 }
-addEventListener('hashchange', route);
+addEventListener('hashchange', () => route(true));
 
 function bindView(name) {
   bindCards(view);
   view.querySelectorAll('[data-settings]').forEach(b => b.onclick = settings);
   view.querySelectorAll('[data-start]').forEach(b => b.onclick = () => startWorkout(b.dataset.start));
   view.querySelectorAll('[data-detail]').forEach(b => b.onclick = () => detail(b.dataset.detail));
+  view.querySelectorAll('[data-install]').forEach(b => b.onclick = async () => { await installApp(); route(); });
+  view.querySelectorAll('[data-nodismiss]').forEach(b => b.onclick = () => { S.settings.installDismissed = true; save(); route(); });
   view.querySelectorAll('[data-quick]').forEach(b => b.onclick = () => quickWorkout(+b.dataset.quick));
   if (name === 'explorar') {
     const f = VIEWS._f, redraw = () => { view.innerHTML = VIEWS.explorar(); bindView('explorar'); };
@@ -268,17 +297,17 @@ function onboarding(edit = false) {
   const p = { ...S.profile };
   const draw = () => sheet(`<h1>${edit ? 'Ajusta tu plan' : 'Crea tu plan en 10 segundos'}</h1>
     <p class="muted" style="margin:4px 0 18px">${edit ? '' : 'Sin cuentas ni correos. Puedes cambiarlo cuando quieras.'}</p>
-    <h3>Mi objetivo</h3><div class="opts" style="margin:8px 0 18px">${Object.entries(GOALS).map(([k, g]) => `<button class="opt" data-g="${k}" aria-pressed="${p.goal === k}">${g.n}</button>`).join('')}</div>
-    <h3>Mi nivel</h3><div class="seg" style="margin:8px 0 18px">${[1, 2, 3].map(n => `<button data-l="${n}" aria-pressed="${p.level === n}">${LEVELS[n].n}</button>`).join('')}</div>
-    <h3>Días por semana</h3><div class="seg" style="margin:8px 0 22px">${[2, 3, 4, 5, 6].map(n => `<button data-d="${n}" aria-pressed="${p.days === n}">${n}</button>`).join('')}</div>
+    <h2 style="font-size:1rem">Mi objetivo</h2><div class="opts" style="margin:8px 0 18px">${Object.entries(GOALS).map(([k, g]) => `<button class="opt" data-g="${k}" aria-pressed="${p.goal === k}">${g.n}</button>`).join('')}</div>
+    <h2 style="font-size:1rem">Mi nivel</h2><div class="seg" style="margin:8px 0 18px">${[1, 2, 3].map(n => `<button data-l="${n}" aria-pressed="${p.level === n}">${LEVELS[n].n}</button>`).join('')}</div>
+    <h2 style="font-size:1rem">Días por semana</h2><div class="seg" style="margin:8px 0 16px">${[2, 3, 4, 5, 6].map(n => `<button data-d="${n}" aria-pressed="${p.days === n}">${n}</button>`).join('')}</div>
+    <p class="small muted" style="margin-bottom:14px">Fluir ofrece rutinas generales de ejercicio, no consejo médico. Si tienes una condición de salud, una lesión o estás embarazada, consulta a un profesional antes de empezar.</p>
     <button class="btn block" id="ok">${edit ? 'Guardar' : 'Empezar'}</button>${edit ? '<button class="btn line block" data-close style="margin-top:8px">Cancelar</button>' : ''}`,
   el => {
     el.querySelectorAll('[data-g]').forEach(b => b.onclick = () => { p.goal = b.dataset.g; draw(); });
     el.querySelectorAll('[data-l]').forEach(b => b.onclick = () => { p.level = +b.dataset.l; draw(); });
     el.querySelectorAll('[data-d]').forEach(b => b.onclick = () => { p.days = +b.dataset.d; draw(); });
     $('#ok', el).onclick = () => { S.profile = { ...p, done: true }; buildPlan(); closeSheet(); route(); toast('Plan listo'); };
-    if (!edit) overlay.onclick = null; // el primer arranque no se cierra tocando fuera
-  });
+  }, { required: !edit });
   draw();
 }
 
@@ -289,8 +318,11 @@ function settings() {
     <div class="card stack"><div><b>Descanso entre ejercicios</b><div class="seg" style="margin-top:8px">${[[0, 'Auto'], [10, '10 s'], [20, '20 s'], [30, '30 s']].map(([v, n]) => `<button data-rest="${v}" aria-pressed="${s.rest === v}">${n}</button>`).join('')}</div></div>
       <div><b>Tema</b><div class="seg" style="margin-top:8px">${[['dark', 'Oscuro'], ['light', 'Claro'], ['auto', 'Sistema']].map(([v, n]) => `<button data-theme="${v}" aria-pressed="${s.theme === v}">${n}</button>`).join('')}</div></div>
       <div><b>Recordatorio diario</b><p class="small muted">Se avisa mientras la app está abierta o instalada.</p><div class="field" style="margin-top:8px"><input type="time" id="rem" value="${esc(s.remind)}"><button class="btn ghost sm" id="remOk">Guardar</button></div></div></div>
-    <div class="row" style="margin-top:14px;flex-wrap:wrap"><button class="btn ghost sm" id="plan2">Cambiar objetivo / plan</button><button class="btn line sm" id="exp">Exportar datos</button><button class="btn line sm" id="rst" style="color:var(--danger)">Borrar todo</button></div>
-    <p class="small muted" style="margin-top:16px">Tus datos viven solo en este dispositivo.</p>`,
+    <div class="row" style="margin-top:14px;flex-wrap:wrap"><button class="btn ghost sm" id="plan2">Cambiar objetivo / plan</button>${installEvt && !isStandalone() ? '<button class="btn sm" id="inst">Instalar app</button>' : ''}<button class="btn line sm" id="exp">Exportar datos</button><button class="btn line sm" id="imp">Importar datos</button><input type="file" id="impf" accept="application/json" hidden><button class="btn line sm" id="rst" style="color:var(--danger)">Borrar todo</button></div>
+    ${isIOS && !isStandalone() ? '<p class="small muted" style="margin-top:14px">Para instalarla en iPhone: botón Compartir → «Añadir a pantalla de inicio».</p>' : ''}
+    <div class="card" style="margin-top:18px"><b>Acerca de Fluir</b>
+      <p class="small muted" style="margin-top:6px">Versión ${__APP_VERSION__}. Sin anuncios, sin cuentas y sin rastreo: tus datos viven solo en este dispositivo (exporta una copia si cambias de teléfono).</p>
+      <p class="small muted" style="margin-top:6px">Las rutinas son orientativas y las calorías, estimaciones. No sustituyen el consejo de un profesional de la salud.</p></div>`,
   el => {
     el.querySelectorAll('[data-s]').forEach(i => i.onchange = () => { s[i.dataset.s] = i.checked; save(); });
     el.querySelectorAll('[data-rest]').forEach(b => b.onclick = () => { s.rest = +b.dataset.rest; save(); settings(); });
@@ -301,27 +333,42 @@ function settings() {
       toast(s.remind ? `Recordatorio a las ${s.remind}` : 'Recordatorio desactivado');
     };
     $('#plan2', el).onclick = () => onboarding(true);
-    $('#exp', el).onclick = () => { const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([JSON.stringify(S, null, 2)], { type: 'application/json' })); a.download = 'fluir-datos.json'; a.click(); };
+    const inst = $('#inst', el); if (inst) inst.onclick = async () => { await installApp(); closeSheet(); };
+    $('#exp', el).onclick = () => {
+      const a = document.createElement('a'), url = URL.createObjectURL(new Blob([JSON.stringify(S, null, 2)], { type: 'application/json' }));
+      a.href = url; a.download = `fluir-datos-${dkey()}.json`; a.click(); setTimeout(() => URL.revokeObjectURL(url), 1000);
+    };
+    $('#imp', el).onclick = () => $('#impf', el).click();
+    $('#impf', el).onchange = async e => {
+      const file = e.target.files[0]; if (!file) return;
+      try {
+        if (file.size > 5e6) throw new Error('grande');
+        const next = sanitizeState(JSON.parse(await file.text()));
+        if (!confirm(`¿Reemplazar tus datos actuales por la copia (${next.log.length} entrenos)?`)) return;
+        S = next; save(); applyTheme(); closeSheet(); route(); toast('Datos importados');
+      } catch { toast('No se pudo leer ese archivo'); }
+    };
     $('#rst', el).onclick = () => { if (confirm('¿Borrar todo tu progreso y ajustes?')) { localStorage.removeItem(KEY); location.reload(); } };
   });
 }
 
+let builderName = ''; // nombre a medio escribir mientras se redibuja la hoja
 function builder() {
   const sel = [];
   const draw = () => sheet(`<div class="row between"><h1>Nueva rutina</h1><button class="icon-btn" data-close aria-label="Cerrar">${ic('x')}</button></div>
-    <input type="text" id="nm" placeholder="Nombre (ej. Lunes de piernas)" style="width:100%;margin:12px 0" value="${esc(builder.name || '')}">
+    <input type="text" id="nm" placeholder="Nombre (ej. Lunes de piernas)" style="width:100%;margin:12px 0" value="${esc(builderName)}">
     <p class="small muted" style="margin-bottom:8px">Toca para añadir en orden · ${sel.length} elegidos</p>
     ${Object.entries(EX).map(([id, e]) => `<button class="pick" data-x="${id}" aria-pressed="${sel.includes(id)}"><span class="tag" style="--c:${AREAS[e.a].c}">${AREAS[e.a].n}</span><b>${esc(e.n)}</b>${sel.includes(id) ? `<span style="margin-left:auto" class="muted">#${sel.indexOf(id) + 1}</span>` : ''}</button>`).join('')}
     <button class="btn block" id="sv" style="position:sticky;bottom:0" ${sel.length < 2 ? 'disabled' : ''}>Guardar rutina</button>`,
   el => {
     el.querySelectorAll('[data-x]').forEach(b => b.onclick = () => {
-      builder.name = $('#nm', el).value; const i = sel.indexOf(b.dataset.x);
+      builderName = $('#nm', el).value; const i = sel.indexOf(b.dataset.x);
       i < 0 ? sel.push(b.dataset.x) : sel.splice(i, 1);
       const top = $('.sheet', overlay).scrollTop; draw(); $('.sheet', overlay).scrollTop = top;
     });
     $('#sv', el).onclick = () => {
       const name = $('#nm', el).value.trim() || 'Mi rutina';
-      S.custom.push({ id: 'c' + Date.now(), name, ex: sel.slice() }); builder.name = ''; save(); closeSheet(); VIEWS._f.area = 'mine'; route(); toast('Rutina guardada');
+      S.custom.push({ id: 'c' + Date.now(), name, ex: sel.slice() }); builderName = ''; save(); closeSheet(); VIEWS._f.area = 'mine'; route(); toast('Rutina guardada');
     };
   });
   draw();
@@ -356,9 +403,10 @@ function startWorkout(id, lv = S.profile.level, custom) {
   closeSheet();
   const w = custom || getW(id); if (!w) return;
   const list = steps(w, lv), R = 2 * Math.PI * 44;
-  let i = 0, phase = 'ready', left = 5, paused = false, wake, total = 0, tick;
-  const el = document.createElement('div'); el.className = 'player'; el.setAttribute('role', 'dialog'); el.setAttribute('aria-label', 'Entrenamiento');
+  let i = 0, phase = 'ready', left = 5, paused = false, wake, total = 0, tick, finished = false;
+  const el = document.createElement('div'); el.className = 'player'; el.setAttribute('role', 'dialog'); el.setAttribute('aria-modal', 'true'); el.setAttribute('aria-label', `Entrenamiento: ${w.n}`);
   document.body.appendChild(el);
+  syncInert();
   try { navigator.wakeLock?.request('screen').then(l => wake = l).catch(() => {}); } catch { /* opcional */ }
 
   const dur = () => phase === 'ready' ? 5 : phase === 'work' ? list[i].work : list[i].rest;
@@ -396,10 +444,11 @@ function startWorkout(id, lv = S.profile.level, custom) {
     $('#quit', el).onclick = quit; $('#pp', el).onclick = () => { paused = !paused; draw(); };
     $('#nx', el).onclick = advance; $('#pv', el).onclick = back;
     const m = $('#more', el); if (m) m.onclick = () => { left += 20; draw(); };
-    if (paused) el.querySelector('svg.anim')?.pauseAnimations();
+    if (paused || reduceMotion) el.querySelector('svg.anim')?.pauseAnimations();
+    announce();
     paint();
   }
-  const dt = 250; let last = performance.now(), acc = 0;
+  const dt = 250; let last = performance.now();
   function paint() {
     const t = $('#tm', el), fg = $('#fg', el); if (!t) return;
     t.textContent = Math.ceil(left); fg.style.strokeDashoffset = R * (1 - left / Math.max(dur(), left));
@@ -413,7 +462,32 @@ function startWorkout(id, lv = S.profile.level, custom) {
     if (left <= 0) advance(); else paint();
   }, dt);
 
-  function cleanup() { clearInterval(tick); wake?.release?.(); window.speechSynthesis?.cancel(); el.remove(); }
+  // Anuncio para lectores de pantalla (región persistente #live), solo al cambiar de fase
+  let said = '';
+  function announce() {
+    const s = list[i], nxt = list[i + 1];
+    const t = phase === 'work' ? `${EX[s.id].n}, ${s.work} segundos` : phase === 'rest' ? `Descanso. Siguiente: ${nxt ? EX[nxt.id].n : 'fin'}` : `Prepárate: ${EX[s.id].n}`;
+    if (t !== said) { said = t; $('#live').textContent = t; }
+  }
+  const onVisibility = () => {
+    if (finished) return;
+    if (document.hidden) { if (!paused) { paused = true; draw(); } }
+    else if (!wake || wake.released) navigator.wakeLock?.request('screen').then(l => wake = l).catch(() => {});
+  };
+  const onKey = e => {
+    if (finished || !overlay.hidden || /^(BUTTON|INPUT|SELECT|A)$/.test(document.activeElement?.tagName) && e.key === ' ') return;
+    if (e.key === ' ') { e.preventDefault(); paused = !paused; draw(); }
+    else if (e.key === 'ArrowRight') advance();
+    else if (e.key === 'ArrowLeft') back();
+    else if (e.key === 'Escape') quit();
+  };
+  document.addEventListener('visibilitychange', onVisibility);
+  document.addEventListener('keydown', onKey);
+  function cleanup() {
+    clearInterval(tick); wake?.release?.(); window.speechSynthesis?.cancel(); el.remove(); syncInert();
+    document.removeEventListener('visibilitychange', onVisibility); document.removeEventListener('keydown', onKey);
+    $('#live').textContent = '';
+  }
   function quit() {
     if (i === 0 && phase === 'ready') return cleanup();
     paused = true; draw();
@@ -427,6 +501,7 @@ function startWorkout(id, lv = S.profile.level, custom) {
     overlay.style.zIndex = 70;
   }
   function finish() {
+    finished = true;
     clearInterval(tick); window.speechSynthesis?.cancel();
     const min = Math.max(1, Math.round(total / 60)), kc = kcal(min, w);
     if (w.id !== 'quick' || total > 30) S.log.push({ date: dkey(), wid: w.id === 'quick' ? 'ini' : w.id, name: w.n, min, kcal: kc });
