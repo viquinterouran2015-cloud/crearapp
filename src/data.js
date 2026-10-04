@@ -111,4 +111,21 @@ const GOALS = {
   health: { n: 'Sentirme mejor', seq: ['ini', 'est', 'abs2', 'esp', 'mov', 'pier'] }
 };
 
-export { AREAS, EX, WORKOUTS, LEVELS, GOALS };
+
+// Variante más fácil / más difícil de cada ejercicio (se muestra en la ficha de técnica)
+const PROGRESSION = {
+  sq: { easier: 'csq', harder: 'js' }, csq: { harder: 'sq' }, js: { easier: 'sq' },
+  lg: { harder: 'jl' }, jl: { easier: 'lg' },
+  pu: { easier: 'kp', harder: 'dpu' }, kp: { easier: 'ip', harder: 'pu' }, ip: { harder: 'kp' },
+  dm: { easier: 'pu' }, dpu: { easier: 'pu', harder: 'dm' },
+  pl: { easier: 'plk', harder: 'plt' }, plk: { harder: 'pl' }, plt: { easier: 'pl' },
+  bp: { easier: 'bps', harder: 'bpp' }, bps: { harder: 'bp' }, bpp: { easier: 'bp' },
+  hk: { easier: 'mrc' }, mrc: { harder: 'hk' },
+  gb: { harder: 'sgb' }, sgb: { easier: 'gb' },
+  su: { easier: 'csq' }, wl: { harder: 'bs' }, bs: { easier: 'wl' }
+};
+
+// Ejercicios por tiempo o isométricos: no se registran por repeticiones
+const NO_REPS = ['pl', 'plk', 'plt', 'sp', 'wl', 'hp', 'ac'];
+
+export { AREAS, EX, WORKOUTS, LEVELS, GOALS, PROGRESSION, NO_REPS };

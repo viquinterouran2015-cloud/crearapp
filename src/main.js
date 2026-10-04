@@ -1,8 +1,9 @@
 import './styles.css';
 import { animSvg } from './anim.js';
 import { registerSW } from 'virtual:pwa-register';
-import { AREAS, EX, LEVELS, GOALS } from './data.js';
-import { DOW, dkey, addDays, mondayOf, sanitizeState, allWorkouts as allW, steps as stepsOf, exercisesFor, roundsFor, minutes as minutesOf, kcal, buildPlan as planFor, doneOn as doneOnLog, streak as streakOf, todaysPick as pickFor, planExpired } from './model.js';
+import { bodyMap } from './body.js';
+import { AREAS, EX, LEVELS, GOALS, PROGRESSION } from './data.js';
+import { DOW, dkey, addDays, mondayOf, sanitizeState, allWorkouts as allW, steps as stepsOf, exercisesFor, roundsFor, minutes as minutesOf, kcal, buildPlan as planFor, doneOn as doneOnLog, streak as streakOf, todaysPick as pickFor, planExpired, isTrackable, repsHistory, lastReps, trackedExercises, bestStreak, bestWeekMinutes, areasOf, generateWorkout } from './model.js';
 /* ---------- Utilidades ---------- */
 const $ = (s, r = document) => r.querySelector(s);
 const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -15,22 +16,9 @@ const IC = {
   x: 'M6 6l12 12M18 6L6 18', check: 'M5 12.5l4.5 4.5L19 7.5', plus: 'M12 5v14M5 12h14',
   flame: 'M12 3c1 4 5 5.5 5 10a5 5 0 0 1-10 0c0-2 1-3 2-4 0 2 1 3 2 3 0-3-1-5 1-9z',
   clock: 'M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18zM12 7v5l3 2', gear: 'M12 9a3 3 0 1 0 0 6 3 3 0 0 0 0-6zM19 12l2-1-1-3-2 .5-1.5-1.5.5-2-3-1-1 2h-2l-1-2-3 1 .5 2L6.5 8.5 4.5 8l-1 3 2 1v2l-2 1 1 3 2-.5L8 19.5l-.5 2 3 1 1-2h2l1 2 3-1-.5-2 1.5-1.5 2 .5 1-3-2-1z',
-  bolt: 'M13 3L5 14h6l-1 7 8-11h-6z', edit: 'M4 20l4-1 11-11-3-3L5 16zM14 6l3 3'
+  chev: 'M9 5l7 7-7 7', bolt: 'M13 3L5 14h6l-1 7 8-11h-6z', spark: 'M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8zM19 16l.8 2.2L22 19l-2.2.8L19 22l-.8-2.2L16 19l2.2-.8z', edit: 'M4 20l4-1 11-11-3-3L5 16zM14 6l3 3'
 };
 const ic = (n, cls = '') => `<svg class="i ${cls}" viewBox="0 0 24 24" aria-hidden="true"><path d="${IC[n]}"/></svg>`;
-// Un glifo simple por zona para las tarjetas y el reproductor
-const GLYPH = {
-  cuerpo: 'M12 4a2 2 0 1 0 0 .1M12 8v6M7 10l5-2 5 2M9 21l3-7 3 7',
-  abs: 'M8 5h8v14H8zM8 9.5h8M8 14h8M12 5v14',
-  espalda: 'M6 5c2 3 4 3 6 3s4 0 6-3M12 8v12M7 12l5 2 5-2',
-  gluteos: 'M4 14c0-5 4-7 8-3 4-4 8-2 8 3s-4 6-8 2c-4 4-8 3-8-2z',
-  piernas: 'M9 3l-2 9 2 9M15 3l2 9-2 9',
-  brazos: 'M4 17l6-6 3 3 7-7M15 7h5v5',
-  pecho: 'M4 8c4-2 6 0 8 2 2-2 4-4 8-2v5c-4 2-6 0-8-2-2 2-4 4-8 2z',
-  cardio: 'M3 12h4l2-6 4 12 2-6h6',
-  estira: 'M12 3v18M5 8c3 2 5 2 7 2s4 0 7-2M6 20c2-2 4-3 6-3s4 1 6 3'
-};
-const glyph = a => `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="${GLYPH[a]}" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
 
 
 /* ---------- Estado (localStorage, sin cuentas) ---------- */
@@ -160,9 +148,9 @@ function wcard(w) {
   // Tarjeta = botón principal (abre el detalle) + botón ▶ hermano (empieza directo): sin interactivos anidados
   return `<article class="card wcard" style="--c:${c}" data-name="${esc(w.n)}">
     <button class="wmain" data-w="${w.id}" type="button" aria-label="Ver ${esc(w.n)}">
-      <span class="art ${IMG[w.a] ? 'has-photo' : ''}">${glyph(w.a)}${photo(w.a, '(min-width:760px) 300px, 50vw')}</span>
-      <span class="body"><span class="tag">${w.custom ? 'Mi rutina' : AREAS[w.a].n}</span><h3>${esc(w.n)}</h3>
-      <span class="pill">${ic('clock')} ${mins} min · ${exercisesFor(w, lv).length} ejercicios</span></span>
+      <span class="art ${IMG[w.a] ? 'has-photo' : ''}">${bodyMap(areasOf(w, lv))}${photo(w.a, '(min-width:760px) 300px, 50vw')}</span>
+      <span class="body"><span class="tags"><span class="tag">${w.custom ? 'Mi rutina' : AREAS[w.a].n}</span><span class="lvtag">${LEVELS[lv].n}</span></span><h3>${esc(w.n)}</h3>
+      <span class="pill">${ic('clock')} ${mins} min · ${exercisesFor(w, lv).length} ejercicios · ${roundsFor(w, lv)} ${roundsFor(w, lv) > 1 ? 'rondas' : 'ronda'}</span></span>
     </button>
     <button class="go" data-go="${w.id}" type="button" aria-label="Empezar ${esc(w.n)}">${ic('play')}</button></article>`;
 }
@@ -178,7 +166,7 @@ const VIEWS = {
     const monday = mondayOf(new Date()), h = new Date().getHours();
     const hi = h < 6 ? 'Buenas noches' : h < 13 ? 'Buenos días' : h < 20 ? 'Buenas tardes' : 'Buenas noches';
     const weekHtml = DOW.map((d, i) => { const k = dkey(addDays(monday, i)); return `<div class="${doneOn(k).length ? 'on' : ''} ${k === t ? 'today' : ''}">${d}<b>${doneOn(k).length ? ic('check') : ''}</b></div>`; }).join('');
-    const quick = [5, 10, 15].map(m => `<button class="chip" data-quick="${m}">${ic('bolt')} ${m} min</button>`).join('');
+    const quick = [5, 10, 15].map(m => `<button class="chip" data-quick="${m}">${ic('bolt')} ${m} min</button>`).join('') + `<button class="chip" data-gen>${ic('spark')} A tu medida</button>`;
     const recent = [...new Map(S.log.slice().reverse().map(l => [l.wid, l])).values()].slice(0, 4).map(l => getW(l.wid)).filter(Boolean);
     return `<div class="stack"><div class="row between"><div><p class="muted small">${hi}</p><h1>¿Listo para moverte?</h1></div>
       <button class="icon-btn" data-settings aria-label="Ajustes">${ic('gear')}</button></div>
@@ -200,7 +188,10 @@ const VIEWS = {
       (!f.q || w.n.toLowerCase().includes(f.q.toLowerCase())) &&
       (f.dur === 'all' || (f.dur === 'short' ? minutes(w, S.profile.level) <= 8 : minutes(w, S.profile.level) > 8)));
     const chip = (k, n) => `<button class="chip" data-area="${k}" aria-pressed="${f.area === k}">${n}</button>`;
+    const lvl = S.profile.level;
     return `<h1>Explorar</h1><p class="muted" style="margin:4px 0 16px">Todo a un toque. Sin registros ni pagos.</p>
+      <button class="card cta" id="gen" type="button">${ic('spark')}<span><b>Rutina a tu medida</b><span class="small muted">Elige zona y tiempo; la armamos con tu nivel.</span></span>${ic('chev')}</button>
+      <div class="seg" role="group" aria-label="Nivel" style="margin:14px 0 12px">${[1, 2, 3].map(n => `<button data-glv="${n}" aria-pressed="${n === lvl}">${LEVELS[n].n}</button>`).join('')}</div>
       <input class="search" type="search" placeholder="Buscar rutina…" value="${esc(f.q)}" aria-label="Buscar" id="q">
       <div class="chips">${chip('all', 'Todas')}${Object.entries(AREAS).map(([k, a]) => chip(k, a.n)).join('')}${S.custom.length ? chip('mine', 'Mis rutinas') : ''}</div>
       <div class="chips"><button class="chip" data-dur="all" aria-pressed="${f.dur === 'all'}">Cualquier duración</button>
@@ -242,10 +233,20 @@ const VIEWS = {
       spark = `<svg viewBox="0 0 300 80" style="width:100%;margin-top:10px" role="img" aria-label="Evolución del peso"><polyline points="${pts}" fill="none" stroke="var(--pri)" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
     }
     const diff = ws.length > 1 ? (last.kg - ws[0].kg).toFixed(1) : null;
+    const tracked = trackedExercises(S.reps).map(id => ({ id, h: repsHistory(S.reps, id) })).sort((a, b) => b.h.at(-1).date.localeCompare(a.h.at(-1).date));
+    const strengthList = tracked.length ? `<div class="stack">${tracked.map(({ id, h }) => {
+      const best = Math.max(...h.map(p => p.reps)), gain = h.at(-1).reps - h[0].reps;
+      return `<button class="card prow" type="button" data-prog="${id}"><span><b>${esc(EX[id].n)}</b><span class="small muted">Mejor serie: ${best} rep · ${h.length} ${h.length > 1 ? 'sesiones' : 'sesión'}</span></span>
+        <span class="delta ${gain > 0 ? 'up' : ''}">${h.length > 1 ? (gain > 0 ? `▲ +${gain}` : gain < 0 ? `▼ ${gain}` : '= igual') : 'Nuevo'}</span></button>`;
+    }).join('')}</div>` : `<div class="card"><p class="muted">Al terminar un entrenamiento podrás anotar tus repeticiones. Aquí verás cómo mejoras en cada ejercicio, con tus récords personales.</p></div>`;
     return `<div class="row between"><h1>Tu progreso</h1><button class="icon-btn" data-settings aria-label="Ajustes">${ic('gear')}</button></div>
       <div class="stats sec"><div class="card stat"><b>${S.log.length}</b><span class="small muted">entrenos</span></div>
         <div class="card stat"><b>${total}</b><span class="small muted">minutos</span></div>
         <div class="card stat"><b>${kc}</b><span class="small muted">kcal aprox.</span></div></div>
+      <div class="stats"><div class="card stat"><b>${bestStreak(S.log)}</b><span class="small muted">racha récord</span></div>
+        <div class="card stat"><b>${bestWeekMinutes(S.log)}</b><span class="small muted">mejor semana (min)</span></div>
+        <div class="card stat"><b>${trackedExercises(S.reps).length}</b><span class="small muted">ejercicios medidos</span></div></div>
+      <section class="sec"><h2>Tu fuerza</h2>${strengthList}</section>
       <section class="sec"><h2>Últimos 7 días</h2><div class="card"><div class="bars">${bars.map(([d, v]) => `<div><i style="height:${(v / mx) * 78}%" title="${v} min"></i>${d}</div>`).join('')}</div></div></section>
       <section class="sec"><h2>${t.toLocaleDateString('es', { month: 'long', year: 'numeric' })}</h2><div class="card"><div class="cal">${cal}</div></div></section>
       <section class="sec"><h2>Peso corporal</h2><div class="card"><div class="row between"><div><b style="font-size:1.6rem">${last ? last.kg + ' kg' : '—'}</b>
@@ -278,6 +279,7 @@ function bindView(name) {
   view.querySelectorAll('[data-detail]').forEach(b => b.onclick = () => detail(b.dataset.detail));
   view.querySelectorAll('[data-install]').forEach(b => b.onclick = async () => { await installApp(); route(); });
   view.querySelectorAll('[data-nodismiss]').forEach(b => b.onclick = () => { S.settings.installDismissed = true; save(); route(); });
+  view.querySelectorAll('[data-gen]').forEach(b => b.onclick = () => generator());
   view.querySelectorAll('[data-quick]').forEach(b => b.onclick = () => quickWorkout(+b.dataset.quick));
   if (name === 'explorar') {
     const f = VIEWS._f, redraw = () => { view.innerHTML = VIEWS.explorar(); bindView('explorar'); };
@@ -285,8 +287,11 @@ function bindView(name) {
     view.querySelectorAll('[data-dur]').forEach(b => b.onclick = () => { f.dur = b.dataset.dur; redraw(); });
     $('#q').oninput = e => { f.q = e.target.value; const p = e.target.selectionStart; redraw(); const q = $('#q'); q.focus(); q.setSelectionRange(p, p); };
     $('#newW').onclick = () => builder();
+    $('#gen').onclick = () => generator();
+    view.querySelectorAll('[data-glv]').forEach(b => b.onclick = () => { S.profile.level = +b.dataset.glv; save(); redraw(); });
   }
   if (name === 'plan') $('#editPlan').onclick = () => onboarding(true);
+  if (name === 'progreso') view.querySelectorAll('[data-prog]').forEach(b => b.onclick = () => exerciseProgress(b.dataset.prog));
   if (name === 'progreso') $('#wf').onsubmit = e => {
     e.preventDefault(); const kg = parseFloat(e.target.firstChild.value);
     if (!kg) return; S.weights.push({ date: dkey(), kg }); save(); route(); toast('Peso guardado');
@@ -298,17 +303,104 @@ function detail(id, lv = S.profile.level) {
   const w = getW(id); if (!w) return;
   const list = steps(w, lv).slice(0, exercisesFor(w, lv).length), rounds = roundsFor(w, lv), L = LEVELS[lv];
   sheet(`<div class="row between"><span class="tag" style="--c:${AREAS[w.a].c}">${w.custom ? 'Mi rutina' : AREAS[w.a].n}</span><button class="icon-btn" data-close aria-label="Cerrar">${ic('x')}</button></div>
-    <h1 style="margin:10px 0 4px">${esc(w.n)}</h1>
+    <div class="row between" style="align-items:flex-end"><h1 style="margin:10px 0 4px">${esc(w.n)}</h1><div class="bm-wrap">${bodyMap(areasOf(w, lv))}</div></div>
     <p class="muted small" id="meta">${minutes(w, lv)} min · ${rounds} ${rounds > 1 ? 'rondas' : 'ronda'} · ~${kcal(minutes(w, lv), w)} kcal</p>
     <div class="seg" style="margin:14px 0 8px">${[1, 2, 3].map(n => `<button data-lv="${n}" aria-pressed="${n === lv}">${LEVELS[n].n}</button>`).join('')}</div>
     <p class="small muted" style="margin-bottom:14px">${esc(L.d)} ${w.gentle ? '' : `${list[0].work} s de trabajo · ${list[0].rest} s de descanso.`}</p>
-    <ol class="xlist">${list.map((s, i) => `<li><div class="thumb ${VID[s.id] ? 'real' : ''}">${VID[s.id] ? clipHtml(s.id, true) : animSvg(s.id)}</div><div><b>${i + 1}. ${esc(EX[s.id].n)}</b><p class="small muted">${esc(EX[s.id].t)}</p></div></li>`).join('')}</ol>
+    <ol class="xlist">${list.map((s, i) => `<li><button class="xitem" type="button" data-tech="${s.id}" aria-label="Ver técnica: ${esc(EX[s.id].n)}"><div class="thumb ${VID[s.id] ? 'real' : ''}">${VID[s.id] ? clipHtml(s.id, true) : animSvg(s.id)}</div><div><b>${i + 1}. ${esc(EX[s.id].n)}</b><p class="small muted">${esc(EX[s.id].t)}</p></div></button></li>`).join('')}</ol>
     <div class="row" style="margin-top:18px"><button class="btn block" id="go">${ic('play')} Empezar</button>${w.custom ? '<button class="btn line" id="del" aria-label="Eliminar rutina">Eliminar</button>' : ''}</div>`,
   el => {
     el.querySelectorAll('[data-lv]').forEach(b => b.onclick = () => detail(id, +b.dataset.lv));
     $('#go', el).onclick = () => startWorkout(id, lv);
+    el.querySelectorAll('[data-tech]').forEach(b => b.onclick = () => technique(b.dataset.tech, () => detail(id, lv)));
     const d = $('#del', el); if (d) d.onclick = () => { S.custom = S.custom.filter(c => c.id !== id); save(); closeSheet(); route(); toast('Rutina eliminada'); };
   });
+}
+
+/* ---------- Progreso de un ejercicio ---------- */
+function lineChart(h) {
+  const W = 300, H = 150, pad = 22, vals = h.map(p => p.reps), lo = Math.min(...vals), hi = Math.max(...vals), span = Math.max(1, hi - lo);
+  const x = i => (h.length === 1 ? W / 2 : pad + (i / (h.length - 1)) * (W - 2 * pad)), y = v => H - pad - ((v - lo) / span) * (H - 2 * pad - 14);
+  const pts = h.map((p, i) => `${x(i).toFixed(1)},${y(p.reps).toFixed(1)}`), line = pts.join(' ');
+  const iMin = vals.indexOf(lo), iMax = vals.lastIndexOf(hi);
+  const badge = (i, v, cls) => `<g class="pb ${cls}"><circle cx="${x(i).toFixed(1)}" cy="${y(v).toFixed(1)}" r="6"/><text x="${x(i).toFixed(1)}" y="${(y(v) + (cls === 'max' ? -11 : 17)).toFixed(1)}" text-anchor="middle">${v}</text></g>`;
+  return `<svg class="chart" viewBox="0 0 ${W} ${H}" role="img" aria-label="Evolución de repeticiones: de ${vals[0]} a ${vals.at(-1)}, mejor ${hi}">
+    <defs><linearGradient id="gfill" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="var(--pri)" stop-opacity=".35"/><stop offset="1" stop-color="var(--pri)" stop-opacity="0"/></linearGradient></defs>
+    ${h.length > 1 ? `<polygon points="${x(0).toFixed(1)},${H - pad} ${line} ${x(h.length - 1).toFixed(1)},${H - pad}" fill="url(#gfill)"/><polyline points="${line}" fill="none" stroke="var(--pri)" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>` : ''}
+    ${h.length > 1 ? badge(iMin, lo, 'min') : ''}${badge(iMax, hi, 'max')}</svg>`;
+}
+function exerciseProgress(id) {
+  const e = EX[id], h = repsHistory(S.reps, id); if (!h.length) return;
+  const best = Math.max(...h.map(p => p.reps)), last = h.at(-1), first = h[0];
+  const fmt = d => new Date(d + 'T00:00').toLocaleDateString('es', { day: 'numeric', month: 'short' });
+  sheet(`<div class="row between"><button class="btn ghost sm" id="back" type="button">← Volver</button><button class="icon-btn" data-close aria-label="Cerrar">${ic('x')}</button></div>
+    <h1 style="margin:10px 0 2px">${esc(e.n)}</h1>
+    <p class="muted small">Mejor serie por día · ${fmt(first.date)} – ${fmt(last.date)}</p>
+    <div class="card" style="margin:14px 0">${lineChart(h)}</div>
+    <h2 style="font-size:1rem;margin-bottom:8px">Tus récords personales</h2>
+    <div class="stack"><div class="card row between"><span>Mejor serie</span><b>${best} repeticiones</b></div>
+      <div class="card row between"><span>Última vez</span><b>${last.reps} repeticiones</b></div>
+      <div class="card row between"><span>Desde el inicio</span><b>${last.reps - first.reps >= 0 ? '+' : ''}${last.reps - first.reps}</b></div></div>
+    <button class="btn line block" id="tec" type="button" style="margin-top:14px">Ver técnica</button>`,
+  el => {
+    $('#back', el).onclick = closeSheet;
+    $('#tec', el).onclick = () => technique(id, () => exerciseProgress(id));
+  });
+}
+
+/* ---------- Técnica de un ejercicio ---------- */
+function technique(id, back) {
+  const e = EX[id]; if (!e) return;
+  const pr = repsHistory(S.reps, id), best = pr.length ? Math.max(...pr.map(p => p.reps)) : null;
+  const chip = (label, other) => other ? `<button class="chip" data-var="${other}" type="button">${label}: ${esc(EX[other].n)}</button>` : '';
+  const pg = PROGRESSION[id] || {};
+  sheet(`<div class="row between"><button class="btn ghost sm" id="back" type="button">← Volver</button><button class="icon-btn" data-close aria-label="Cerrar">${ic('x')}</button></div>
+    <div class="techmedia" style="--c:${AREAS[e.a].c}">${VID[id] ? clipHtml(id) : animSvg(id)}</div>
+    <span class="tag" style="--c:${AREAS[e.a].c}">${AREAS[e.a].n}</span>
+    <h1 style="margin:8px 0 6px">${esc(e.n)}</h1>
+    <p>${esc(e.t)}</p>
+    ${best ? `<p class="small muted" style="margin-top:8px">Tu mejor serie: <b>${best} repeticiones</b></p>` : ''}
+    ${pg.easier || pg.harder ? `<h2 style="font-size:1rem;margin:16px 0 8px">¿Muy fácil o muy difícil?</h2><div class="chips" style="flex-wrap:wrap;overflow:visible;margin:0;padding-inline:0">${chip('Más fácil', pg.easier)}${chip('Más difícil', pg.harder)}</div>` : ''}`,
+  el => {
+    $('#back', el).onclick = () => (back ? back() : closeSheet());
+    el.querySelectorAll('[data-var]').forEach(b => b.onclick = () => technique(b.dataset.var, back));
+    driveClips(el, true);
+  });
+}
+
+/* ---------- Rutina a tu medida ---------- */
+function generator() {
+  const lv = S.profile.level, picks = new Set(['cuerpo']);
+  let minutes = 10, w = null;
+  const make = () => { w = generateWorkout({ areas: [...picks], minutes, level: lv, restOverride: S.settings.rest }); };
+  const draw = () => {
+    const real = minutesOf(w, lv, S.settings.rest), areas = Object.entries(AREAS);
+    sheet(`<div class="row between"><h1>Rutina a tu medida</h1><button class="icon-btn" data-close aria-label="Cerrar">${ic('x')}</button></div>
+      <p class="muted small" style="margin:4px 0 14px">Nivel ${LEVELS[lv].n.toLowerCase()}: ${esc(LEVELS[lv].d)}</p>
+      <h2 style="font-size:1rem">¿Qué quieres trabajar?</h2>
+      <div class="chips" style="flex-wrap:wrap;overflow:visible;margin:8px 0 14px;padding-inline:0">${areas.map(([k, a]) => `<button class="chip" data-pick="${k}" aria-pressed="${picks.has(k)}">${a.n}</button>`).join('')}</div>
+      <h2 style="font-size:1rem">¿Cuánto tiempo tienes?</h2>
+      <div class="seg" style="margin:8px 0 16px">${[5, 10, 15, 20, 30].map(m => `<button data-min="${m}" aria-pressed="${m === minutes}">${m} min</button>`).join('')}</div>
+      <div class="row between"><b>Tu rutina · ${real} min</b><button class="btn ghost sm" id="again" type="button">Otra combinación</button></div>
+      <ol class="xlist" style="margin-top:10px">${w.ex.map((id, i) => `<li><div class="thumb ${VID[id] ? 'real' : ''}">${VID[id] ? clipHtml(id, true) : animSvg(id)}</div><div><b>${i + 1}. ${esc(EX[id].n)}</b><p class="small muted">${esc(AREAS[EX[id].a].n)}</p></div></li>`).join('')}</ol>
+      <div class="row" style="margin-top:16px;flex-wrap:wrap"><button class="btn" id="gostart" style="flex:1">${ic('play')} Empezar</button><button class="btn line" id="gosave" type="button">Guardar</button></div>`,
+    el => {
+      el.querySelectorAll('[data-pick]').forEach(b => b.onclick = () => {
+        const k = b.dataset.pick;
+        if (k === 'cuerpo') { picks.clear(); picks.add('cuerpo'); }
+        else { picks.delete('cuerpo'); picks.has(k) ? picks.delete(k) : picks.add(k); if (!picks.size) picks.add('cuerpo'); }
+        make(); draw();
+      });
+      el.querySelectorAll('[data-min]').forEach(b => b.onclick = () => { minutes = +b.dataset.min; make(); draw(); });
+      $('#again', el).onclick = () => { make(); draw(); };
+      $('#gostart', el).onclick = () => startWorkout(null, lv, w);
+      $('#gosave', el).onclick = () => {
+        S.custom.push({ id: 'c' + Date.now(), name: w.n, ex: Array.from({ length: w.r }, () => w.ex).flat() });
+        save(); closeSheet(); toast('Guardada en «Mis rutinas»'); route();
+      };
+    });
+  };
+  make(); draw();
 }
 
 function onboarding(edit = false) {
@@ -460,10 +552,14 @@ function startWorkout(id, lv = S.profile.level, custom) {
       <div class="controls"><button class="side" id="pv" aria-label="Anterior">${ic('prev')}</button>
         <button class="big" id="pp" aria-label="${paused ? 'Reanudar' : 'Pausar'}">${ic(paused ? 'play' : 'pause')}</button>
         <button class="side" id="nx" aria-label="Siguiente">${ic('next')}</button></div>
-      ${phase === 'rest' ? '<button class="btn ghost" id="more" style="margin-top:16px">+20 s</button>' : '<div style="height:64px"></div>'}`;
+      <div class="row" style="margin-top:16px;justify-content:center;min-height:44px">${phase === 'rest' ? '<button class="btn ghost sm" id="more" type="button">+20 s</button>' : ''}<button class="btn ghost sm" id="tech" type="button">Ver técnica</button></div>`;
     $('#quit', el).onclick = quit; $('#pp', el).onclick = () => { paused = !paused; draw(); };
     $('#nx', el).onclick = advance; $('#pv', el).onclick = back;
     const m = $('#more', el); if (m) m.onclick = () => { left += 20; draw(); };
+    $('#tech', el).onclick = () => {
+      paused = true; draw();
+      technique(shownId, () => { closeSheet(); }); overlay.style.zIndex = 70;
+    };
     if (paused || reduceMotion) el.querySelector('svg.anim')?.pauseAnimations();
     driveClips(el, !paused);
     announce();
@@ -527,15 +623,35 @@ function startWorkout(id, lv = S.profile.level, custom) {
   function finish() {
     finished = true;
     clearInterval(tick); window.speechSynthesis?.cancel();
-    const min = Math.max(1, Math.round(total / 60)), kc = kcal(min, w);
-    if (w.id !== 'quick' || total > 30) S.log.push({ date: dkey(), wid: w.id === 'quick' ? 'ini' : w.id, name: w.n, min, kcal: kc });
+    const min = Math.max(1, Math.round(total / 60)), kc = kcal(min, w), adhoc = w.id === 'quick' || w.id === 'gen';
+    if (!adhoc || total > 30) S.log.push({ date: dkey(), wid: adhoc ? 'ini' : w.id, name: w.n, min, kcal: kc });
     save(); beep(1200, .4); say('¡Muy bien! Entrenamiento completado');
     el.classList.remove('rest'); el.classList.remove('paused');
-    el.innerHTML = `<div class="stage"><div class="done-badge">${ic('check')}</div><h1>¡Lo lograste!</h1>
+    // Registro de repeticiones (opcional): ejercicios de fuerza realizados, con la «previa» de la última vez
+    const upto = phase === 'ready' ? i : i + 1;
+    const rows = [...new Set(list.slice(0, upto).map(x => x.id))].filter(isTrackable).map(id => {
+      const prev = lastReps(S.reps, id); return { id, prev, now: prev ?? 10 };
+    });
+    const logger = rows.length ? `<section class="card replog" aria-labelledby="rl"><b id="rl">Registra tus repeticiones</b><p class="small muted">Por serie. Opcional: así verás tu progreso.</p>
+      ${rows.map(r => `<div class="rrow"><div><b>${esc(EX[r.id].n)}</b><span class="small muted">Previa: ${r.prev ?? '—'}</span></div>
+        <div class="stepper"><button type="button" data-dec="${r.id}" aria-label="Una repetición menos en ${esc(EX[r.id].n)}">−</button><output id="r-${r.id}" aria-live="polite">${r.now}</output><button type="button" data-inc="${r.id}" aria-label="Una repetición más en ${esc(EX[r.id].n)}">+</button></div></div>`).join('')}
+      </section>` : '';
+    el.innerHTML = `<div class="stage summary"><div class="done-badge">${ic('check')}</div><h1>¡Lo lograste!</h1>
       <p class="muted">${esc(w.n)}</p>
       <div class="stats" style="width:100%"><div class="card stat"><b>${min}</b><span class="small muted">min</span></div><div class="card stat"><b>${kc}</b><span class="small muted">kcal</span></div><div class="card stat"><b>${streak()}</b><span class="small muted">racha</span></div></div>
+      ${logger}
       <p class="small muted">Estira un poco y bebe agua.</p></div>
-      <button class="btn block" id="end" style="max-width:560px">Listo</button>`;
+      <div class="row" style="width:100%;max-width:560px;flex-wrap:wrap;gap:8px">${rows.length ? '<button class="btn" id="saveReps" style="flex:1">Guardar y salir</button><button class="btn line" id="end" type="button">Sin registrar</button>' : '<button class="btn block" id="end">Listo</button>'}</div>`;
+    const val = id => $(`#r-${id}`, el);
+    el.querySelectorAll('[data-inc],[data-dec]').forEach(b => b.onclick = () => {
+      const id = b.dataset.inc || b.dataset.dec, o = val(id);
+      o.textContent = Math.min(300, Math.max(1, +o.textContent + (b.dataset.inc ? 1 : -1)));
+    });
+    const sr = $('#saveReps', el);
+    if (sr) sr.onclick = () => {
+      for (const r of rows) S.reps.push({ date: dkey(), ex: r.id, reps: +val(r.id).textContent });
+      save(); toast('Repeticiones guardadas'); cleanup(); route();
+    };
     $('#end', el).onclick = () => { cleanup(); route(); };
   }
   enter('ready');

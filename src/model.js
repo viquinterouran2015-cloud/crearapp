@@ -1,5 +1,5 @@
 // Lógica pura (sin DOM ni localStorage): fechas, rutinas, plan, racha y validación del estado guardado.
-import { EX, WORKOUTS, LEVELS, GOALS } from './data.js';
+import { EX, WORKOUTS, LEVELS, GOALS, NO_REPS } from './data.js';
 
 export const DOW = ['L', 'M', 'X', 'J', 'V', 'S', 'D'];
 export const STATE_VERSION = 2;
@@ -45,6 +45,61 @@ export function buildPlan({ goal, days }, now = new Date()) {
 
 export const planExpired = (plan, now = new Date()) => dayDiff(now, fromKey(plan.start)) >= 28;
 
+/* ---------- Repeticiones y récords ---------- */
+// Se registran repeticiones solo en ejercicios de fuerza contables (no cardio, estiramientos ni isométricos)
+export const isTrackable = id => !!EX[id] && EX[id].a !== 'cardio' && EX[id].a !== 'estira' && !NO_REPS.includes(id);
+
+// Mejor serie de cada día para un ejercicio, en orden cronológico
+export function repsHistory(reps, ex) {
+  const byDay = new Map();
+  for (const r of reps) if (r.ex === ex) byDay.set(r.date, Math.max(byDay.get(r.date) ?? 0, r.reps));
+  return [...byDay].map(([date, n]) => ({ date, reps: n })).sort((a, b) => a.date.localeCompare(b.date));
+}
+export const lastReps = (reps, ex) => repsHistory(reps, ex).at(-1)?.reps ?? null;
+export const trackedExercises = reps => [...new Set(reps.map(r => r.ex))].filter(id => EX[id]);
+
+// Racha más larga de días consecutivos con entrenamiento
+export function bestStreak(log) {
+  const days = [...new Set(log.map(l => l.date))].sort();
+  let best = 0, run = 0, prev = null;
+  for (const k of days) {
+    run = prev && dayDiff(fromKey(k), fromKey(prev)) === 1 ? run + 1 : 1;
+    best = Math.max(best, run); prev = k;
+  }
+  return best;
+}
+// Minutos de la mejor semana (lunes a domingo)
+export function bestWeekMinutes(log) {
+  const weeks = new Map();
+  for (const l of log) { const k = dkey(mondayOf(fromKey(l.date))); weeks.set(k, (weeks.get(k) ?? 0) + l.min); }
+  return Math.max(0, ...weeks.values());
+}
+
+// Zonas que trabaja una rutina en un nivel (para el mapa muscular)
+export const areasOf = (w, lv) => new Set(exercisesFor(w, lv).map(id => EX[id].a));
+
+/* ---------- Rutina a tu medida ---------- */
+// Elige ejercicios de las zonas pedidas (en la versión del nivel), alternando zonas, hasta llegar a los minutos
+export function generateWorkout({ areas = [], minutes: target = 10, level = 1, restOverride = 0, rand = Math.random }) {
+  const L = LEVELS[level], wantAll = areas.length === 0 || areas.includes('cuerpo');
+  const onlyStretch = areas.length > 0 && areas.every(a => a === 'estira');
+  const pool = new Set();
+  for (const w of WORKOUTS) for (const id of exercisesFor(w, level)) {
+    const a = EX[id].a;
+    if (a === 'estira' ? areas.includes('estira') : wantAll || areas.includes(a)) pool.add(id);
+  }
+  const shuffle = arr => { const x = [...arr]; for (let i = x.length - 1; i > 0; i--) { const j = Math.floor(rand() * (i + 1)); [x[i], x[j]] = [x[j], x[i]]; } return x; };
+  const groups = new Map();
+  for (const id of shuffle(pool)) { const a = EX[id].a; groups.set(a, [...(groups.get(a) ?? []), id]); }
+  const queues = shuffle([...groups.values()]), order = [];
+  while (queues.some(q => q.length)) for (const q of queues) if (q.length) order.push(q.shift());
+  const perExercise = (onlyStretch ? L.gw + (restOverride || 10) : L.w + (restOverride || L.rest)) / 60;
+  const count = Math.max(3, Math.round(target / perExercise));
+  const ex = order.slice(0, count);
+  const r = Math.max(1, Math.round(count / ex.length));
+  return { id: 'gen', n: `A tu medida · ${target} min`, a: areas.length === 1 ? areas[0] : 'cuerpo', r, ex, fixed: true, gentle: onlyStretch };
+}
+
 export const doneOn = (log, key) => log.filter(l => l.date === key);
 export function streak(log, now = new Date()) {
   const days = new Set(log.map(l => l.date));
@@ -70,7 +125,7 @@ export const defaultState = () => ({
   v: STATE_VERSION,
   profile: { goal: 'tone', level: 1, days: 3, done: false },
   settings: { voice: true, sound: true, rest: 0, theme: 'dark', themeChosen: false, installDismissed: false, remind: '' },
-  plan: null, log: [], weights: [], custom: []
+  plan: null, log: [], weights: [], custom: [], reps: []
 });
 
 const isObj = v => v && typeof v === 'object' && !Array.isArray(v);
@@ -108,6 +163,9 @@ export function sanitizeState(raw) {
     .filter(l => isObj(l) && DATE_RE.test(l.date) && num(l.min, 0, 600) !== null)
     .map(l => ({ date: l.date, wid: known.has(l.wid) ? l.wid : 'ini', name: String(l.name || '').slice(0, 60), min: l.min, kcal: num(l.kcal, 0, 5000) ?? 0 }))
     .slice(-2000);
+  s.reps = (Array.isArray(raw.reps) ? raw.reps : [])
+    .filter(r => isObj(r) && DATE_RE.test(r.date) && EX[r.ex] && num(r.reps, 1, 500) !== null)
+    .map(r => ({ date: r.date, ex: r.ex, reps: Math.round(r.reps) })).slice(-3000);
   s.weights = (Array.isArray(raw.weights) ? raw.weights : [])
     .filter(w => isObj(w) && DATE_RE.test(w.date) && num(w.kg, 20, 400) !== null)
     .map(w => ({ date: w.date, kg: w.kg })).slice(-1000);

@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
-import { WORKOUTS, EX, AREAS, GOALS, LEVELS } from '../src/data.js';
+import { WORKOUTS, EX, AREAS, GOALS, LEVELS, PROGRESSION, NO_REPS } from '../src/data.js';
 import { ANIM_IDS } from '../src/anim.js';
-import { dkey, mondayOf, steps, minutes, exercisesFor, roundsFor, kcal, buildPlan, planExpired, streak, todaysPick, sanitizeState, defaultState } from '../src/model.js';
+import { isTrackable, repsHistory, lastReps, bestStreak, bestWeekMinutes, areasOf, generateWorkout, dkey, mondayOf, steps, minutes, exercisesFor, roundsFor, kcal, buildPlan, planExpired, streak, todaysPick, sanitizeState, defaultState } from '../src/model.js';
 
 const at = (y, m, d, h = 12) => new Date(y, m - 1, d, h);
 
@@ -137,5 +137,80 @@ describe('sanitizeState', () => {
   it('un plan con rutinas desconocidas las limpia', () => {
     const weeks = Array.from({ length: 4 }, () => ['hiit', 'fantasma', null, null, null, null, null]);
     expect(sanitizeState({ plan: { start: '2026-09-28', weeks } }).plan.weeks[0].slice(0, 2)).toEqual(['hiit', null]);
+  });
+});
+
+describe('progresiones', () => {
+  it('apuntan a ejercicios existentes y son recíprocas', () => {
+    for (const [id, p] of Object.entries(PROGRESSION)) {
+      expect(EX[id], id).toBeTruthy();
+      for (const other of [p.easier, p.harder].filter(Boolean)) expect(EX[other], `${id}→${other}`).toBeTruthy();
+    }
+    expect(NO_REPS.every(id => EX[id])).toBe(true);
+  });
+});
+
+describe('repeticiones y récords', () => {
+  const reps = [
+    { date: '2026-09-01', ex: 'pu', reps: 8 }, { date: '2026-09-01', ex: 'pu', reps: 10 },
+    { date: '2026-09-08', ex: 'pu', reps: 12 }, { date: '2026-09-08', ex: 'sq', reps: 20 }
+  ];
+  it('solo se registran ejercicios de fuerza contables', () => {
+    expect(isTrackable('pu') && isTrackable('sq')).toBe(true);
+    for (const id of ['jj', 'cv', 'pl', 'sp', 'wl', 'bp', 'nope']) expect(isTrackable(id), id).toBe(false);
+  });
+  it('historial: mejor serie por día y en orden cronológico', () => {
+    expect(repsHistory(reps, 'pu')).toEqual([{ date: '2026-09-01', reps: 10 }, { date: '2026-09-08', reps: 12 }]);
+    expect(lastReps(reps, 'sq')).toBe(20);
+    expect(lastReps(reps, 'lg')).toBeNull();
+  });
+  it('racha más larga y mejor semana', () => {
+    const log = ['2026-09-01', '2026-09-02', '2026-09-03', '2026-09-07', '2026-09-08'].map(date => ({ date, min: 10 }));
+    expect(bestStreak(log)).toBe(3);
+    expect(bestStreak([])).toBe(0);
+    expect(bestWeekMinutes(log)).toBe(30); // 31-ago→6-sep: días 1,2,3 = 30 min
+  });
+  it('sanitizeState conserva repeticiones válidas y descarta basura', () => {
+    const s = sanitizeState({ reps: [{ date: '2026-09-01', ex: 'pu', reps: 12.4 }, { date: 'x', ex: 'pu', reps: 5 }, { date: '2026-09-01', ex: 'zzz', reps: 5 }, { date: '2026-09-01', ex: 'pu', reps: 9999 }] });
+    expect(s.reps).toEqual([{ date: '2026-09-01', ex: 'pu', reps: 12 }]);
+  });
+});
+
+describe('mapa muscular', () => {
+  it('areasOf devuelve las zonas de los ejercicios del nivel', () => {
+    const w = WORKOUTS.find(x => x.id === 'abs');
+    expect([...areasOf(w, 1)]).toContain('abs');
+  });
+});
+
+describe('rutina a tu medida', () => {
+  const seeded = seed => () => { seed = (seed * 16807) % 2147483647; return (seed - 1) / 2147483646; };
+  it('respeta zonas y se acerca a los minutos pedidos', () => {
+    for (const minutes of [5, 10, 20, 30]) for (const level of [1, 2, 3]) {
+      const w = generateWorkout({ areas: ['piernas', 'abs'], minutes, level, rand: seeded(7) });
+      expect(w.ex.every(id => ['piernas', 'abs'].includes(EX[id].a)), `${minutes}/${level}`).toBe(true);
+      const real = Math.round(steps(w, level).reduce((t, x) => t + x.work + x.rest, 0) / 60);
+      expect(Math.abs(real - minutes), `${minutes}/${level} → ${real}`).toBeLessThanOrEqual(Math.max(3, minutes * 0.35));
+    }
+  });
+  it('Principiante nunca recibe ejercicios de salto', () => {
+    const jumps = ['js', 'jl', 'bpp', 'sk', 'bp'];
+    for (let s = 1; s <= 20; s++) expect(generateWorkout({ areas: ['cuerpo'], minutes: 20, level: 1, rand: seeded(s) }).ex.some(id => jumps.includes(id))).toBe(false);
+  });
+  it('sin zonas = cuerpo entero (sin estiramientos); solo estiramiento es suave', () => {
+    expect(generateWorkout({ minutes: 10, level: 2, rand: seeded(3) }).ex.some(id => EX[id].a === 'estira')).toBe(false);
+    const st = generateWorkout({ areas: ['estira'], minutes: 5, level: 2, rand: seeded(3) });
+    expect(st.gentle).toBe(true);
+    expect(st.ex.every(id => EX[id].a === 'estira')).toBe(true);
+  });
+  it('es determinista con la misma semilla y cambia con otra', () => {
+    const a = generateWorkout({ areas: ['cuerpo'], minutes: 10, level: 2, rand: seeded(5) }).ex.join();
+    expect(generateWorkout({ areas: ['cuerpo'], minutes: 10, level: 2, rand: seeded(5) }).ex.join()).toBe(a);
+    expect(generateWorkout({ areas: ['cuerpo'], minutes: 10, level: 2, rand: seeded(99) }).ex.join()).not.toBe(a);
+  });
+  it('no repite ejercicios dentro de una ronda y no cambia de rondas por nivel', () => {
+    const w = generateWorkout({ areas: ['cuerpo'], minutes: 15, level: 3, rand: seeded(11) });
+    expect(new Set(w.ex).size).toBe(w.ex.length);
+    expect(roundsFor(w, 3)).toBe(w.r);
   });
 });

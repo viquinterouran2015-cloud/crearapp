@@ -215,3 +215,42 @@ main:focus{outline:0}
 .stage.with-clip{gap:12px}
 .xlist .thumb.real{width:64px;aspect-ratio:2/3;padding:0;overflow:hidden;background:#000}
 .xlist .thumb.real .clip{height:100%}
+
+/* Mapa muscular */
+.bm{display:block;height:100%;width:auto;max-width:100%}
+.bm .s,.bm .l{transition:fill .2s,stroke .2s}
+.bm .s{fill:color-mix(in srgb,var(--ink) 13%,transparent)}
+.bm .l{fill:none;stroke:color-mix(in srgb,var(--ink) 13%,transparent);stroke-linecap:round}
+.bm .s.base{fill:color-mix(in srgb,var(--ink) 20%,transparent)}
+.bm .s.on{fill:var(--pri)} .bm .l.on{stroke:var(--pri)}
+.bm .s.dim{fill:color-mix(in srgb,var(--pri) 45%,transparent)} .bm .l.dim{stroke:color-mix(in srgb,var(--pri) 45%,transparent)}
+.wcard .art{height:104px}
+.wcard .art svg.bm{width:auto;height:84px;stroke-width:inherit}
+.bm-wrap{height:72px;flex:none}
+.tags{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.lvtag{font-size:.72rem;font-weight:600;color:var(--muted)}
+
+/* Rutina a tu medida, fichas de técnica y progreso */
+.cta{display:flex;align-items:center;gap:14px;width:100%;text-align:left;padding:14px 16px;border-color:color-mix(in srgb,var(--pri) 55%,var(--line));background:linear-gradient(135deg,color-mix(in srgb,var(--pri) 16%,var(--surface)),var(--surface))}
+.cta>svg:first-child{color:var(--pri);width:28px;height:28px}
+.cta>span{flex:1;display:flex;flex-direction:column}
+.xitem{display:flex;gap:12px;align-items:center;width:100%;text-align:left;color:inherit;padding:0}
+.xlist li:has(.xitem){padding:0}
+.xlist .xitem{padding:12px 14px}
+.techmedia{border-radius:22px;background:color-mix(in srgb,var(--c) 14%,var(--surface));padding:12px;margin:14px 0 12px;display:flex;justify-content:center;overflow:hidden}
+.techmedia svg.anim{max-width:420px}
+.techmedia .clip{width:auto;height:min(52vh,420px);aspect-ratio:2/3;border-radius:16px}
+.replog{width:100%;text-align:left}
+.rrow{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 0;border-top:1px solid var(--line)}
+.rrow>div:first-child{display:flex;flex-direction:column}
+.stepper{display:flex;align-items:center;gap:6px}
+.stepper button{width:44px;height:44px;border-radius:50%;background:var(--pri-soft);color:var(--pri);font-size:1.4rem;font-weight:700;line-height:1}
+.stepper output{min-width:42px;text-align:center;font-size:1.3rem;font-weight:800;font-variant-numeric:tabular-nums}
+.stage.summary{justify-content:flex-start;overflow-y:auto;padding-top:8px}
+.prow{display:flex;align-items:center;justify-content:space-between;gap:12px;width:100%;text-align:left;color:inherit}
+.prow>span:first-child{display:flex;flex-direction:column}
+.delta{font-weight:700;font-size:.9rem;color:var(--muted)} .delta.up{color:var(--pri)}
+.chart{width:100%;height:auto;display:block}
+.pb circle{fill:var(--pri);stroke:var(--surface);stroke-width:2}
+.pb text{font-size:11px;font-weight:700;fill:var(--ink)}
+.pb.min circle{fill:var(--warm)}
