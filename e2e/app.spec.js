@@ -27,7 +27,7 @@ test('el tema es oscuro por defecto', async ({ page }) => {
   await ready(page, onboarded);
   await page.goto('/');
   const bg = await page.evaluate(() => getComputedStyle(document.body).backgroundColor);
-  expect(bg).toBe('rgb(13, 14, 16)');
+  expect(bg).toBe('rgb(5, 8, 19)');
 });
 
 test('navegación completa entre las 4 pestañas', async ({ page }) => {

@@ -1,15 +1,15 @@
 // Catálogo de ejercicios y rutinas. Todo sin equipo.
 // t: pista de técnica que se muestra y se lee en voz alta.
 const AREAS = {
-  cuerpo:  { n: 'Cuerpo entero', c: '#3E7C6E' },
-  abs:     { n: 'Abdominales',   c: '#D9925A' },
-  espalda: { n: 'Espalda',       c: '#5B7FA6' },
-  gluteos: { n: 'Glúteos',       c: '#B5697F' },
-  piernas: { n: 'Piernas',       c: '#7A8F4E' },
-  brazos:  { n: 'Brazos',        c: '#8B6BB0' },
-  pecho:   { n: 'Pecho',         c: '#C4705A' },
-  cardio:  { n: 'Cardio / HIIT', c: '#D0A13C' },
-  estira:  { n: 'Estiramiento',  c: '#5FA3A0' }
+  cuerpo:  { n: 'Cuerpo entero', c: '#4D8DFF' },
+  abs:     { n: 'Abdominales',   c: '#22D3EE' },
+  espalda: { n: 'Espalda',       c: '#8B7CFF' },
+  gluteos: { n: 'Glúteos',       c: '#F472B6' },
+  piernas: { n: 'Piernas',       c: '#34D399' },
+  brazos:  { n: 'Brazos',        c: '#A78BFA' },
+  pecho:   { n: 'Pecho',         c: '#FB7185' },
+  cardio:  { n: 'Cardio / HIIT', c: '#FBBF24' },
+  estira:  { n: 'Estiramiento',  c: '#2DD4BF' }
 };
 
 const EX = {
