@@ -45,6 +45,12 @@ Cada rutina cambia de verdad con el nivel (`src/data.js` → `lv`, `LEVELS`):
 
 Las rutinas de estiramiento solo alargan el tiempo de sostén; las rutinas propias y las rápidas no cambian de rondas.
 
+## Funciones de seguimiento y personalización
+- **Registro de repeticiones** al terminar un entreno (con la «previa» de la última vez) → récords personales y gráfica de evolución por ejercicio (pestaña Progreso).
+- **Rutina a tu medida:** eliges zonas y tiempo y se arma con las variantes de tu nivel (`generateWorkout` en `src/model.js`); se puede empezar o guardar.
+- **Ficha de técnica** de cada ejercicio (clip o animación + consejo + variante más fácil / más difícil), desde la rutina y desde el reproductor.
+- **Mapa muscular** (frente y espalda) en cada rutina, calculado con los ejercicios del nivel.
+
 ## Decisiones de calidad
 - **Datos locales y a prueba de corrupción:** todo lo guardado pasa por `sanitizeState` (descarta lo inválido); exportar/importar copia de seguridad.
 - **Accesibilidad:** diálogos con foco atrapado y fondo inerte, `Esc`, salto al contenido, anuncios para lectores de pantalla, teclado en el reproductor (espacio, ←, →, Esc), `prefers-reduced-motion`, auditoría axe en CI.
